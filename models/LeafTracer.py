@@ -53,8 +53,8 @@ class LeafTracer():
         if self.verbose:
             print('Tracing...')
         row, col = idx
-        rows = np.empty(shape=(0,), dtype=np.float)
-        cols = np.empty(shape=(0,), dtype=np.float)
+        rows = np.empty(shape=(0,), dtype=float)
+        cols = np.empty(shape=(0,), dtype=float)
 
         for iter in range(max_iter):
 
