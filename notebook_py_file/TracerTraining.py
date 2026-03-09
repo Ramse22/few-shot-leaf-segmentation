@@ -165,9 +165,9 @@ torchinfo.summary(
 #### Run model ####
 
 # options
-epochs = 5 #originally 1000
-batch_size = 128 #originally 256
-workers = 8 # orignially 64
+epochs = 1000
+batch_size = 256
+workers = 64
 early_stopping = 20
 
 # train 

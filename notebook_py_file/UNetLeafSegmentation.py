@@ -56,7 +56,7 @@ if plot:
     print('Plotting examples...')
     size = [images[0].shape[0], images[0].shape[1]]
     n_show = min(len(IL), 8)
-    n_rows = np.ceil(n_show/2)
+    n_rows = np.ceil(n_show // 2)
     fig = plt.figure(figsize=(4*size[1]/size[0]*figsize, n_rows*figsize))
     for i in range(n_show):
         ax = fig.add_subplot(n_rows, 4, 2*i+1)

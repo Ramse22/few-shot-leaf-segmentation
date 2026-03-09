@@ -163,9 +163,9 @@ torchinfo.summary(
 
 #### run model ####
 
-epochs = 1  #originally 1000
-batch_size = 512  #originally 1024
-workers = 4   # originally 64
+epochs = 1000
+batch_size = 1024
+workers = 64
 early_stopping = 20
 
 model.fit(

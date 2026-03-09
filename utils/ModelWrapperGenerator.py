@@ -189,16 +189,16 @@ class ModelWrapper():
 
             # loop over training batches
             idx = 0
-            mem_every = 50
+            # mem_every = 50
             for x_true, y_true in train_loader:
-                do_mem = (self.device.type == "cuda" and (idx % mem_every == 0))
-                if do_mem:
-                    torch.cuda.reset_peak_memory_stats(self.device)
-                    torch.cuda.synchronize(self.device)
-                    alloc = torch.cuda.memory_allocated(self.device) / 1024**2
-                    reserved = torch.cuda.memory_reserved(self.device) / 1024**2
-                    peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
-                    print(f"\n[batch {idx}] START  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
+                # do_mem = (self.device.type == "cuda" and (idx % mem_every == 0))
+                # if do_mem:
+                #     torch.cuda.reset_peak_memory_stats(self.device)
+                #     torch.cuda.synchronize(self.device)
+                #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
+                #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
+                #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
+                #     print(f"\n[batch {idx}] START  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
 
                 # callback at beginning of batch
                 if callbacks is not None:
@@ -276,12 +276,12 @@ class ModelWrapper():
                 self.scaler.update()
 
                 ######################################################################
-                if do_mem:
-                    torch.cuda.synchronize(self.device)
-                    alloc = torch.cuda.memory_allocated(self.device) / 1024**2
-                    reserved = torch.cuda.memory_reserved(self.device) / 1024**2
-                    peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
-                    print(f"[batch {idx}] AFTER STEP alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
+                # if do_mem:
+                #     torch.cuda.synchronize(self.device)
+                #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
+                #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
+                #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
+                #     print(f"[batch {idx}] AFTER STEP alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
                 ########################################################################
 
                 # scheduler (if used)
@@ -399,9 +399,9 @@ class ModelWrapper():
 
                     # loop over validation batches
                     idx = 0
-                    mem_every = 50
+                    # mem_every = 50
                     for x_true, y_true in val_loader:
-                        do_mem = (self.device.type == "cuda" and (idx % mem_every == 0))
+                        # do_mem = (self.device.type == "cuda" and (idx % mem_every == 0))
 
                         # callback at beginning of batch
                         if callbacks is not None:
@@ -427,12 +427,12 @@ class ModelWrapper():
                         with autocast(device_type="cuda", enabled=(self.device.type == "cuda")):
                             y_pred = self.model(x_true) #not changed
                             #############################################################
-                            if do_mem:
-                                torch.cuda.synchronize(self.device)
-                                alloc = torch.cuda.memory_allocated(self.device) / 1024**2
-                                reserved = torch.cuda.memory_reserved(self.device) / 1024**2
-                                peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
-                                print(f"[batch {idx}] AFTER FWD  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
+                            # if do_mem:
+                            #     torch.cuda.synchronize(self.device)
+                            #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
+                            #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
+                            #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
+                            #     print(f"[batch {idx}] AFTER FWD  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
                             ##############################################################
                             # compute loss 
                             if isinstance(self.loss, list): 
