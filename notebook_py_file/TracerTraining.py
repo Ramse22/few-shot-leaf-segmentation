@@ -167,7 +167,7 @@ torchinfo.summary(
 # options
 epochs = 1000
 batch_size = 256
-workers = 64
+workers = 8
 early_stopping = 20
 
 # train 
@@ -380,3 +380,4 @@ for i in range(64):
     
 plt.tight_layout(pad=0.2)
 plt.show()
+
