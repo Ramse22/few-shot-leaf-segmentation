@@ -6,6 +6,9 @@ import torch
 import torchinfo
 from importlib import reload
 
+import torch.multiprocessing as mp
+mp.set_sharing_strategy("file_system")
+
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 sys.path.append('../')  
