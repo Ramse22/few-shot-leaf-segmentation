@@ -7,6 +7,8 @@ from PIL import Image
 from importlib import reload
 from skimage import measure
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
 sys.path.append('../')
 import models.BuildCNN as BuildCNN
 import models.VeinGrower as VeinGrower
@@ -20,7 +22,7 @@ if 'device' not in locals():
 # options
 window_size = 128
 loss = 'fl' # 'fl' 'bce'
-weights_path = f'../weights/vein_grower_{loss}_{window_size}_best_val_model.save'
+weights_path = f'../weights_marion/vein_grower_{loss}_{window_size}_best_val_model.save'
 layers = layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
