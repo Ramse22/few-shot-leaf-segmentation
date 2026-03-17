@@ -52,10 +52,10 @@ grower = VeinGrower.VeinGrower(
 #### Grower inference ####
 
 # options
-image_path = '../data/images/'
+image_path = '../data_marion/images/'
 roi_path = '../data_marion/leaf_preds/'
-pred_path = f'../data_marion/vein_{loss}_preds/'
-prob_path = f'../data_marion/vein_{loss}_probs/'
+pred_path = f'../data_marion/vein_{loss}_preds2/'
+prob_path = f'../data_marion/vein_{loss}_probs2/'
 image_extension = 'jpeg'
 roi_extension = 'png'
 pred_extension = 'png'
