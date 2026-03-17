@@ -56,7 +56,7 @@ image_path = '../data_marion/images/'
 roi_path = '../data_marion/leaf_preds/'
 pred_path = f'../data_marion/vein_{loss}_preds2/'
 prob_path = f'../data_marion/vein_{loss}_probs2/'
-image_extension = 'jpeg'
+image_extension = '*'
 roi_extension = 'png'
 pred_extension = 'png'
 prob_extension = 'png'
@@ -71,7 +71,10 @@ show = True
 fig_size = 15
 
 # get image paths
-image_names = [os.path.basename(f) for f in glob.glob(image_path+'*'+image_extension) if '_bot' in f]
+image_names = []
+for ext in ['jpeg', 'tiff', 'tif', 'jpg', 'png']:
+    image_names.extend([os.path.basename(f) for f in glob.glob(image_path+'*'+ext)])
+image_names = list(set(image_names))  # Remove duplicates
 image_names.sort()
 
 # loop over all leaf images
@@ -87,12 +90,24 @@ for image_idx, image_name in enumerate(image_names):
         print(f'Loading {image_name}...')
     image = np.array(Image.open(image_path + image_name), dtype=np.float32)/255
     if roi_path is not None:
-        roi = np.array(Image.open(
-            roi_path + image_name.replace(image_extension, roi_extension)), dtype=np.float32)/255
-        roi = roi[:,:,0] > 0.5
+        roi_candidates = [
+            roi_path + image_name.replace(image_extension, roi_extension),
+            roi_path + os.path.splitext(image_name)[0] + '.' + roi_extension
+        ]
+        roi_file = None
+        for candidate in roi_candidates:
+            if os.path.exists(candidate):
+                roi_file = candidate
+                break
+
+        if roi_file:
+            roi = np.array(Image.open(roi_file), dtype=np.float32)/255
+            roi = roi[:,:,0] > 0.5
+        else:
+            roi = None
     else:
         roi = None
-    
+
     # segment the venation
     t0 = time.time()
     prob, mask = grower.grow(
