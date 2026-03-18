@@ -131,7 +131,7 @@ for image_idx, image_name in enumerate(image_names):
             print('Saving mask...')
         save_mask = np.concatenate([mask[:,:,None], mask[:,:,None], mask[:,:,None]], axis=-1)
         pil_mask = Image.fromarray(np.uint8(255*save_mask))
-        name = pred_path + image_name.replace(image_extension, pred_extension)
+        name = pred_path + os.path.splitext(image_name)[0] + '.' + pred_extension
         pil_mask.save(name, quality=100, subsampling=0)
 
     # save prob
@@ -141,7 +141,7 @@ for image_idx, image_name in enumerate(image_names):
         prob = prob[0] if len(prob.shape) == 3 else prob
         save_prob = np.concatenate([prob[:,:,None], prob[:,:,None], prob[:,:,None]], axis=-1)
         pil_prob = Image.fromarray(np.uint8(255*save_prob))
-        name = prob_path + image_name.replace(image_extension, prob_extension)
+        name = prob_path + os.path.splitext(image_name)[0] + '.' + prob_extension
         pil_prob.save(name, quality=100, subsampling=0)
 
     # plot overlay
