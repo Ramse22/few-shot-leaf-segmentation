@@ -9,17 +9,23 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 pred_path = '../data_marion/leaf_preds_2/'
 image_path = '../data_marion/images/'
 
+# Convert TIFF images to JPEG
+for tiff_file in glob.glob(image_path + '*.tiff'):
+    img = Image.open(tiff_file)
+    jpeg_path = tiff_file.replace('.tiff', '.jpeg')
+    img.convert('RGB').save(jpeg_path, 'JPEG')
+    print(f"Converted {os.path.basename(tiff_file)}")
+
 # Get list of saved predictions
 pred_files = sorted(glob.glob(pred_path + '*.png'))
 
-print(f"Found {len(pred_files)} saved predictions\n")
+print(f"\nFound {len(pred_files)} saved predictions\n")
 
 # Visualize a few examples
-num_examples = 3  # Change this to show more/fewer
+num_examples = 3
 fig_size = 12
 
 for pred_idx, pred_file in enumerate(pred_files[:num_examples]):
-    # Get the image name from the mask filename (without extension)
     base_name = os.path.splitext(os.path.basename(pred_file))[0]
     
     # Try different image extensions
@@ -52,22 +58,14 @@ for pred_idx, pred_file in enumerate(pred_files[:num_examples]):
     else:
         print(f"Image file not found for: {base_name}")
 
-#Leaf vein visualization
-
+# Leaf vein visualization
 vein_pred_path = '../data_marion/vein_fl_preds2/'
-image_path = '../data_marion/images/'
-
-for tiff_file in glob.glob(image_path + '*.tiff'):
-    img = Image.open(tiff_file)
-    jpeg_path = tiff_file.replace('.tiff', '.jpeg')
-    img.convert('RGB').save(jpeg_path, 'JPEG')
-    print(f"Converted {os.path.basename(tiff_file)}")
 
 # Get vein predictions
 vein_files = sorted(glob.glob(vein_pred_path + '*.png'))
 print(f"\nFound {len(vein_files)} vein predictions")
 
-# Visualize with overlay (like in TracerInference)
+# Visualize with overlay
 num_examples = 5
 fig_size = 15
 
