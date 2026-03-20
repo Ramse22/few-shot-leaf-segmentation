@@ -258,11 +258,7 @@ class ModelWrapper():
                 # reset gradients
                 self.optimizer.zero_grad()
 
-                # ✅ Ensure gradients are enabled
-                for param in self.model.parameters():
-                    param.requires_grad = True
-
-                # ❌ SANS AUTOCAST: forward + loss WITHOUT AMP
+                # forward + loss WITHOUT AMP
                 y_pred = self.model(x_true)
 
                 # compute loss
@@ -271,10 +267,10 @@ class ModelWrapper():
                 if self.regularizer is not None:
                     loss = loss + self.regularizer(self.model, x_true, y_true, y_pred)
 
-                # backward (sans scaler puisque pas d'AMP)
+                # backward
                 loss.backward()
 
-                # update weights (sans scaler)
+                # update weights
                 self.optimizer.step()
 
                 ######################################################################

@@ -258,10 +258,6 @@ class ModelWrapper():
                 # reset gradients
                 self.optimizer.zero_grad()
 
-                # ensure model parameters require gradients during training
-                for param in self.model.parameters():
-                    param.requires_grad = True
-
                 # forward + loss with AMP
                 with autocast(device_type="cuda", enabled=(self.device.type == "cuda")):
                     y_pred = self.model(x_true)
