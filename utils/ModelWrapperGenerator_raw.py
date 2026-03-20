@@ -258,30 +258,24 @@ class ModelWrapper():
                 # reset gradients
                 self.optimizer.zero_grad()
 
-                # disable gradients during forward pass
-                for param in self.model.parameters():
-                    param.requires_grad = False
-
-                # forward + loss with AMP
-                with autocast(device_type="cuda", enabled=(self.device.type == "cuda")):
-                    y_pred = self.model(x_true)
-
-                    # compute loss
-                    loss = self.loss(y_pred, y_true)
-
-                    if self.regularizer is not None:
-                        loss = loss + self.regularizer(self.model, x_true, y_true, y_pred)
-
-                # re-enable gradients before backward
+                # ✅ Ensure gradients are enabled
                 for param in self.model.parameters():
                     param.requires_grad = True
 
-                # backward
-                self.scaler.scale(loss).backward()
+                # ❌ SANS AUTOCAST: forward + loss WITHOUT AMP
+                y_pred = self.model(x_true)
 
-                # update weights
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
+                # compute loss
+                loss = self.loss(y_pred, y_true)
+
+                if self.regularizer is not None:
+                    loss = loss + self.regularizer(self.model, x_true, y_true, y_pred)
+
+                # backward (sans scaler puisque pas d'AMP)
+                loss.backward()
+
+                # update weights (sans scaler)
+                self.optimizer.step()
 
                 ######################################################################
                 # if do_mem:
@@ -427,30 +421,29 @@ class ModelWrapper():
                         y_true = y_true.to(self.device).contiguous()
 
                         # run the model
-                        # WITH AUTOCAST
-                        with autocast(device_type="cuda", enabled=(self.device.type == "cuda")):
-                            y_pred = self.model(x_true)
-                            #############################################################
-                            # if do_mem:
-                            #     torch.cuda.synchronize(self.device)
-                            #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
-                            #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
-                            #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
-                            #     print(f"[batch {idx}] AFTER FWD  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
-                            ##############################################################
-                            # compute loss 
-                            if isinstance(self.loss, list): 
-                                for loss_fun in self.loss:
-                                    self.val_loss += loss_fun(y_pred, y_true)
-                            else:
-                                self.val_loss += self.loss(y_pred, y_true)
+                        # WITHOUT AUTOCAST
+                        y_pred = self.model(x_true)
+                        #############################################################
+                        # if do_mem:
+                        #     torch.cuda.synchronize(self.device)
+                        #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
+                        #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
+                        #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
+                        #     print(f"[batch {idx}] AFTER FWD  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
+                        ##############################################################
+                        # compute loss 
+                        if isinstance(self.loss, list): 
+                            for loss_fun in self.loss:
+                                self.val_loss += loss_fun(y_pred, y_true)
+                        else:
+                            self.val_loss += self.loss(y_pred, y_true)
 
-                            # optionally include regularization in val loss
-                            if include_val_reg and self.regularizer is not None:
-                                self.val_reg_loss += self.regularizer(self.model, 
-                                                                    x_true,
-                                                                    y_true,
-                                                                    y_pred)
+                        # optionally include regularization in val loss
+                        if include_val_reg and self.regularizer is not None:
+                            self.val_reg_loss += self.regularizer(self.model, 
+                                                                x_true,
+                                                                y_true,
+                                                                y_pred)
 
                         # wait for GPU computations to finish
                         if self.device != torch.device('cpu') and synchronize:

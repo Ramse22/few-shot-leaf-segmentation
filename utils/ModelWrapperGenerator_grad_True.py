@@ -258,9 +258,9 @@ class ModelWrapper():
                 # reset gradients
                 self.optimizer.zero_grad()
 
-                # disable gradients during forward pass
+                # ensure model parameters require gradients during training
                 for param in self.model.parameters():
-                    param.requires_grad = False
+                    param.requires_grad = True
 
                 # forward + loss with AMP
                 with autocast(device_type="cuda", enabled=(self.device.type == "cuda")):
@@ -271,10 +271,6 @@ class ModelWrapper():
 
                     if self.regularizer is not None:
                         loss = loss + self.regularizer(self.model, x_true, y_true, y_pred)
-
-                # re-enable gradients before backward
-                for param in self.model.parameters():
-                    param.requires_grad = True
 
                 # backward
                 self.scaler.scale(loss).backward()
