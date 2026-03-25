@@ -146,7 +146,7 @@ class ModelWrapper():
         # initialize log file
         if self.log_name is not None:
             with open(self.log_name, 'w') as f:
-                f.writelines('Epoch,Train Loss,Val Loss\n')
+                f.writelines('Epoch,Train Loss,Val Loss,Learning Rate\n')
 
         # loop over epochs
         for epoch in range(initial_epoch, initial_epoch + epochs):
@@ -191,14 +191,6 @@ class ModelWrapper():
             idx = 0
             # mem_every = 50
             for x_true, y_true in train_loader:
-                # do_mem = (self.device.type == "cuda" and (idx % mem_every == 0))
-                # if do_mem:
-                #     torch.cuda.reset_peak_memory_stats(self.device)
-                #     torch.cuda.synchronize(self.device)
-                #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
-                #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
-                #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
-                #     print(f"\n[batch {idx}] START  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
 
                 # callback at beginning of batch
                 if callbacks is not None:
@@ -216,45 +208,6 @@ class ModelWrapper():
                 x_true = x_true.to(self.device).contiguous()
                 y_true = y_true.to(self.device).contiguous()
 
-                # # computes loss (original version without AMP)
-                # def closure():
-
-                #     # zero out gradients
-                #     self.optimizer.zero_grad()
-
-                #     # zero-initialize losses
-                #     self.train_loss = 0
-                #     self.train_reg_loss = 0
-
-                #     # require gradients
-                #     #if torch.is_tensor(x_true):
-                #     #    x_true.requires_grad = True
-
-
-                #     y_pred = self.model(x_true) 
-
-                #     # otherwise proceed normally
-                #     self.train_loss = self.train_loss + self.loss(y_pred, y_true)
-
-                #     if self.regularizer is not None:
-                #         self.train_reg_loss = self.train_reg_loss + self.regularizer(
-                #             self.model, 
-                #             x_true,
-                #             y_true,
-                #             y_pred)
-
-                #     self.train_loss = self.train_loss + self.train_reg_loss
-                #     self.train_loss.backward() 
-
-                #     return self.train_loss
-
-                # # update model parameters
-                # if self.scheduler is None:
-                #     self.optimizer.step(closure=closure)
-                # else:
-                #     self.scheduler.step(closure())
-
-                ########################################################################
                 # reset gradients
                 self.optimizer.zero_grad()
 
@@ -275,23 +228,12 @@ class ModelWrapper():
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
 
-                ######################################################################
-                # if do_mem:
-                #     torch.cuda.synchronize(self.device)
-                #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
-                #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
-                #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
-                #     print(f"[batch {idx}] AFTER STEP alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
-                ########################################################################
-
                 # scheduler (if used)
                 if self.scheduler is not None:
                     self.scheduler.step()
 
                 # store loss for logging
                 self.train_loss = loss
-
-                #####################################################################
 
                 # update book keeping for this batch
                 self.train_loss = self.train_loss.cpu().detach().numpy()
@@ -422,14 +364,7 @@ class ModelWrapper():
                         # WITH AUTOCAST
                         with autocast(device_type="cuda", enabled=(self.device.type == "cuda")):
                             y_pred = self.model(x_true)
-                            #############################################################
-                            # if do_mem:
-                            #     torch.cuda.synchronize(self.device)
-                            #     alloc = torch.cuda.memory_allocated(self.device) / 1024**2
-                            #     reserved = torch.cuda.memory_reserved(self.device) / 1024**2
-                            #     peak = torch.cuda.max_memory_allocated(self.device) / 1024**2
-                            #     print(f"[batch {idx}] AFTER FWD  alloc/res/peak MB: {alloc:.1f} {reserved:.1f} {peak:.1f}")
-                            ##############################################################
+
                             # compute loss 
                             if isinstance(self.loss, list): 
                                 for loss_fun in self.loss:
@@ -483,11 +418,20 @@ class ModelWrapper():
 
             # log progress
             if self.log_name is not None:
+                current_lr = self.optimizer.param_groups[0]['lr']
                 with open(self.log_name, 'a') as f:
-                    f.writelines('{0},{1},{2}\n'.format(
+                    f.writelines('{0},{1},{2},{3}\n'.format(
                         epoch+1, 
                         self.train_loss_list[-1], 
-                        self.val_loss_list[-1]))
+                        self.val_loss_list[-1],
+                        current_lr))
+            
+            #Scheduler
+            if self.scheduler is not None:
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    self.scheduler.step(self.val_loss_list[-1])  # Passer la val loss
+                else:
+                    self.scheduler.step()
 
             # update user
             if verbose == 1:

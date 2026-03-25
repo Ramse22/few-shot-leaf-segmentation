@@ -15,7 +15,7 @@ sys.path.append('../')
 import utils.ImageLoader as ImageLoader
 import utils.VeinGenerator as VeinGenerator
 from utils.GetLowestGPU import GetLowestGPU
-import utils.ModelWrapperGenerator as MW
+import utils.ModelWrapperGenerator_raw as MW
 import models.BuildCNN as BuildCNN
 
 if 'device' not in locals():
@@ -147,24 +147,14 @@ def FocalLoss(pred, target):
     out = out - torch.mean((1.0 - alpha)*(pt_0**gamma)*torch.log(1.0 - pt_0))
     return out
 
-# Reduce learning rate when validation loss plateaus
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    opt,
-    mode='min',
-    factor=0.5,
-    patience=10,
-    threshold=1e-4,
-    verbose=True)
-
 # wrap model
 reload(MW)
 model = MW.ModelWrapper(
     model=cnn,
     optimizer=opt,
     loss=FocalLoss,
-    # scheduler=scheduler, 
-    save_name=f'../weights_marion/{save_name}',
-    log_name=f'../logs_marion/{save_name}.txt',
+    save_name=f'../weights_marion/{save_name}_raw',
+    log_name=f'../logs_marion/{save_name}_raw.txt',
     device=device)
 
 # model summary
