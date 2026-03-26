@@ -4,12 +4,12 @@ import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # Define your log file path
-log_file = '../logs_marion/leaf_tracer_256_raw.txt'
+log_file = '../logs_marion/vein_grower_fl_128_raw.txt'
 
 rel_save_thresh = 0.0
 
 # load errors
-total_train_losses, total_val_losses = [], []
+total_train_losses, total_val_losses, learning_rates = [], [], []
 with open(log_file, 'r') as f:  # ← use log_file instead of model.log_name
     for i, line in enumerate(f):
         if i == 0:
@@ -17,6 +17,7 @@ with open(log_file, 'r') as f:  # ← use log_file instead of model.log_name
         line = line.split(',')
         total_train_losses.append(float(line[1]))
         total_val_losses.append(float(line[2]))
+        learning_rates.append(float(line[3]))
 
 # find where errors decreased
 train_idx, train_loss, val_idx, val_loss = [], [], [], []
@@ -40,10 +41,11 @@ best_epoch = val_idx[idx] + 1  # +1 because epochs start at 1, not 0
 best_loss = val_loss[idx]
 print(f"Best epoch: {best_epoch}")
 print(f"Best validation loss: {best_loss:.6f}")
+print(f"Learning rate at best epoch: {learning_rates[best_epoch-1]:.6e}")
 
 # plot errors and improvements
-fig = plt.figure(figsize=(15,5))
-ax = fig.add_subplot(1, 2, 1)
+fig = plt.figure(figsize=(18, 5))
+ax = fig.add_subplot(1, 3, 1)
 plt.plot(total_train_losses, 'b')
 plt.plot(total_val_losses, 'r')
 plt.plot(val_idx[idx], val_loss[idx], 'ko')
@@ -52,7 +54,7 @@ plt.xlabel(r'Epochs')
 plt.ylabel(r'Total Loss')
 plt.title(r'Convergence')
 plt.grid()
-ax = fig.add_subplot(1, 2, 2)
+ax = fig.add_subplot(1, 3, 2)
 plt.plot(train_idx, train_loss, 'b.-')
 plt.plot(val_idx, val_loss, 'r.-')
 plt.legend([r'Train error', r'Val error'])
@@ -62,6 +64,12 @@ plt.title(r'Improvements')
 plt.grid()
 plt.tight_layout(h_pad=2, w_pad=2)
 plt.show()
+ax = fig.add_subplot(1, 3, 3)
+plt.plot(learning_rates, 'g', linewidth=2)
+plt.xlabel('Epochs')
+plt.ylabel('Learning Rate')
+plt.title('Learning Rate Evolution')
+plt.grid()
 
 # plot log-scaled errors and improvements
 fig = plt.figure(figsize=(15,5))

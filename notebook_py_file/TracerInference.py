@@ -25,7 +25,7 @@ window_size = 256
 path_length = 128
 step_length = 32
 close_dist = 10
-weights_path = f'../weights_marion/leaf_tracer_{window_size}_best_val_model.save'
+weights_path = f'../weights/leaf_tracer_{window_size}_best_val_model.save'
 layers = [4, 32, 32, 32, 32, 32, 64, 128]
 output_shape = [2, path_length]
 output_activation = None
@@ -65,9 +65,9 @@ TI = TraceInitializer.TraceInitializer(
 #### Tracer inference ####
 
 # options
-image_path = '../data/images/'
+image_path = '../data_marion/images/'
 mask_path = '../data/leaf_masks/'
-pred_path = '../data_marion/leaf_preds/'
+pred_path = '../data/leaf_preds/'
 image_extension = 'jpeg'
 mask_extension = 'png'
 pred_extension = 'png'

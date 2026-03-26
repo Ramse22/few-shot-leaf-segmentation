@@ -228,10 +228,6 @@ class ModelWrapper():
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
 
-                # scheduler (if used)
-                if self.scheduler is not None:
-                    self.scheduler.step()
-
                 # store loss for logging
                 self.train_loss = loss
 

@@ -6,7 +6,7 @@ from skimage import measure
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # Load saved masks
-pred_path = '../data_marion/leaf_preds_2/'
+pred_path = '../data_marion/leaf_preds/'
 image_path = '../data_marion/images/'
 
 # Convert TIFF images to JPEG
