@@ -148,13 +148,16 @@ def FocalLoss(pred, target):
     return out
 
 # Reduce learning rate when validation loss plateaus
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    opt,
-    mode='min',
-    factor=0.5,
-    patience=10,
-    threshold=1e-4,
-    verbose=True)
+scheduler_before_Plateau = {
+    'mode': 'min',
+    'factor': 0.5,
+    'patience': 10,
+    'threshold': 1e-4,
+}
+if 'verbose' in torch.optim.lr_scheduler.ReduceLROnPlateau.__init__.__code__.co_varnames:
+    scheduler_before_Plateau['verbose'] = True
+
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, **scheduler_before_Plateau)
 
 # wrap model
 reload(MW)
