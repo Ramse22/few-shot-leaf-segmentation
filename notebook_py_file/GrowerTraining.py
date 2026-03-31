@@ -134,7 +134,8 @@ cnn = BuildCNN.CNN(
     window_size=window_size, 
     layers=layers,
     output_shape=output_shape,
-    output_activation=output_activation).to(device)
+    output_activation=output_activation,
+    dropout_rate=0.5).to(device)
 opt = torch.optim.Adam(cnn.parameters(), lr=1e-3)
 
 # focal loss
@@ -165,7 +166,7 @@ model = MW.ModelWrapper(
     model=cnn,
     optimizer=opt,
     loss=FocalLoss,
-    # scheduler=scheduler, 
+    scheduler=scheduler, 
     save_name=f'../weights_marion/{save_name}',
     log_name=f'../logs_marion/{save_name}.txt',
     device=device)
