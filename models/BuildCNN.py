@@ -47,7 +47,7 @@ class CNN(torch.nn.Module):
             pool='max',
             num_convs=3,
             use_batchnorm=True,
-            dropout_rate=0.0)
+            dropout_rate=0.5)
 
         # conv + reshape
         self.conv = torch.nn.Conv2d(

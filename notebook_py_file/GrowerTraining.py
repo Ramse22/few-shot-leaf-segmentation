@@ -126,7 +126,7 @@ loss = 'fl' # 'fl' 'bce'
 layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
-save_name = f'vein_grower_{loss}_{window_size}'
+save_name = f'vein_grower_{loss}_{window_size}_dropout'
 
 # initialize model and optimizer
 reload(BuildCNN)
@@ -134,8 +134,7 @@ cnn = BuildCNN.CNN(
     window_size=window_size, 
     layers=layers,
     output_shape=output_shape,
-    output_activation=output_activation,
-    dropout_rate=0.5).to(device)
+    output_activation=output_activation).to(device)
 opt = torch.optim.Adam(cnn.parameters(), lr=1e-3)
 
 # focal loss
