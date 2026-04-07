@@ -135,7 +135,7 @@ cnn = BuildCNN.CNN(
     layers=layers,
     output_shape=output_shape,
     output_activation=output_activation).to(device)
-opt = torch.optim.Adam(cnn.parameters(), lr=1e-3)
+opt = torch.optim.Adam(cnn.parameters(), lr=5e-3)
 
 # focal loss
 gamma, alpha = 2.0, 0.25
@@ -181,7 +181,7 @@ torchinfo.summary(
 
 epochs = 50
 batch_size = 1024
-workers = 64
+workers = 32
 early_stopping = 10
 
 model.fit(
