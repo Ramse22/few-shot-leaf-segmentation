@@ -9,62 +9,61 @@ from skimage import measure
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-sys.path.append('../')
+sys.path.append("../")
 import models.BuildCNN as BuildCNN
 import models.VeinGrower as VeinGrower
 from utils.GetLowestGPU import GetLowestGPU
 
-if 'device' not in locals():
+if "device" not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
 
 #### initialize grower ####
 
 # options
 window_size = 128
-loss = 'fl' # 'fl' 'bce'
-weights_path = f'../weights_marion/vein_grower_{loss}_{window_size}_best_val_model.save'
+loss = "fl"  # 'fl' 'bce'
+weights_path = f"../weights_marion/vein_grower_{loss}_{window_size}_best_val_model.save"
 layers = layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
 
 # load CNN model
-print('loading cnn model...')
+print("loading cnn model...")
 reload(BuildCNN)
 model = BuildCNN.CNN(
-    window_size=window_size, 
+    window_size=window_size,
     layers=layers,
     output_shape=output_shape,
-    output_activation=output_activation).to(device)
+    output_activation=output_activation,
+).to(device)
 weights = torch.load(weights_path, map_location=device)
 model.load_state_dict(weights)
 model.eval()
 
 # initialize vein grower
-print('initializing vein grower...')
+print("initializing vein grower...")
 reload(VeinGrower)
 grower = VeinGrower.VeinGrower(
-    window_size=window_size, 
-    model=model,
-    device=device, 
-    verbose=True)
+    window_size=window_size, model=model, device=device, verbose=True
+)
 
 
 #### Grower inference ####
 
 # options
-image_path = '../data_marion/images/'
-roi_path = '../data_marion/leaf_preds/'
-pred_path = f'../data_marion/vein_{loss}_preds2/'
-prob_path = f'../data_marion/vein_{loss}_probs2/'
-image_extension = '*'
-roi_extension = 'png'
-pred_extension = 'png'
-prob_extension = 'png'
-n_locs = 10000 # number of seed pixels
+image_path = "../data_marion/images/"
+roi_path = "../data_marion/leaf_preds/"
+pred_path = f"../data_marion/vein_{loss}_preds2/"
+prob_path = f"../data_marion/vein_{loss}_probs2/"
+image_extension = "*"
+roi_extension = "png"
+pred_extension = "png"
+prob_extension = "png"
+n_locs = 10000  # number of seed pixels
 batch_size = 2048
 threshold = None
 post_process = True
-max_number =  None # number of images to segment, set to None for all images
+max_number = None  # number of images to segment, set to None for all images
 verbose = True
 save = True
 show = True
@@ -72,27 +71,26 @@ fig_size = 15
 
 # get image paths
 image_names = []
-for ext in ['jpeg', 'tiff', 'tif', 'jpg', 'png']:
-    image_names.extend([os.path.basename(f) for f in glob.glob(image_path+'*'+ext)])
+for ext in ["jpeg", "tiff", "tif", "jpg", "png"]:
+    image_names.extend([os.path.basename(f) for f in glob.glob(image_path + "*" + ext)])
 image_names = list(set(image_names))  # Remove duplicates
 image_names.sort()
 
 # loop over all leaf images
 for image_idx, image_name in enumerate(image_names):
-    
     # don't exceed maximum
     if max_number is not None:
         if image_idx >= max_number:
             break
-            
+
     # load image
     if verbose:
-        print(f'Loading {image_name}...')
-    image = np.array(Image.open(image_path + image_name), dtype=np.float32)/255
+        print(f"Loading {image_name}...")
+    image = np.array(Image.open(image_path + image_name), dtype=np.float32) / 255
     if roi_path is not None:
         roi_candidates = [
             roi_path + image_name.replace(image_extension, roi_extension),
-            roi_path + os.path.splitext(image_name)[0] + '.' + roi_extension
+            roi_path + os.path.splitext(image_name)[0] + "." + roi_extension,
         ]
         roi_file = None
         for candidate in roi_candidates:
@@ -101,8 +99,8 @@ for image_idx, image_name in enumerate(image_names):
                 break
 
         if roi_file:
-            roi = np.array(Image.open(roi_file), dtype=np.float32)/255
-            roi = roi[:,:,0] > 0.5
+            roi = np.array(Image.open(roi_file), dtype=np.float32) / 255
+            roi = roi[:, :, 0] > 0.5
         else:
             roi = None
     else:
@@ -111,48 +109,52 @@ for image_idx, image_name in enumerate(image_names):
     # segment the venation
     t0 = time.time()
     prob, mask = grower.grow(
-        image=image, 
-        roi=roi, 
-        start_locs=None, 
-        n_locs=n_locs, 
-        batch_size=batch_size, 
+        image=image,
+        roi=roi,
+        start_locs=None,
+        n_locs=n_locs,
+        batch_size=batch_size,
         threshold=threshold,
-        post_process=post_process)
+        post_process=post_process,
+    )
     t1 = time.time()
     if verbose:
-        print('Iteration completed in {0:1.2f} seconds'.format(t1-t0))
-        
+        print("Iteration completed in {0:1.2f} seconds".format(t1 - t0))
+
     # get positive class
     prob = prob[0]
 
     # save mask
     if save:
-        if verbose: 
-            print('Saving mask...')
-        save_mask = np.concatenate([mask[:,:,None], mask[:,:,None], mask[:,:,None]], axis=-1)
-        pil_mask = Image.fromarray(np.uint8(255*save_mask))
-        name = pred_path + os.path.splitext(image_name)[0] + '.' + pred_extension
+        if verbose:
+            print("Saving mask...")
+        save_mask = np.concatenate(
+            [mask[:, :, None], mask[:, :, None], mask[:, :, None]], axis=-1
+        )
+        pil_mask = Image.fromarray(np.uint8(255 * save_mask))
+        name = pred_path + os.path.splitext(image_name)[0] + "." + pred_extension
         pil_mask.save(name, quality=100, subsampling=0)
 
     # save prob
     if save:
-        if verbose: 
-            print('Saving prob...')
+        if verbose:
+            print("Saving prob...")
         prob = prob[0] if len(prob.shape) == 3 else prob
-        save_prob = np.concatenate([prob[:,:,None], prob[:,:,None], prob[:,:,None]], axis=-1)
-        pil_prob = Image.fromarray(np.uint8(255*save_prob))
-        name = prob_path + os.path.splitext(image_name)[0] + '.' + prob_extension
+        save_prob = np.concatenate(
+            [prob[:, :, None], prob[:, :, None], prob[:, :, None]], axis=-1
+        )
+        pil_prob = Image.fromarray(np.uint8(255 * save_prob))
+        name = prob_path + os.path.splitext(image_name)[0] + "." + prob_extension
         pil_prob.save(name, quality=100, subsampling=0)
 
     # plot overlay
     if show:
-        if verbose: 
-            print('Plotting overlay...')
+        if verbose:
+            print("Plotting overlay...")
         image[mask] = [1, 0, 0]
-        fig = plt.figure(figsize=(image.shape[1]/image.shape[0]*fig_size, fig_size))
+        fig = plt.figure(figsize=(image.shape[1] / image.shape[0] * fig_size, fig_size))
         plt.imshow(image)
         plt.show()
-        
-    if verbose: 
-        print()
 
+    if verbose:
+        print()
