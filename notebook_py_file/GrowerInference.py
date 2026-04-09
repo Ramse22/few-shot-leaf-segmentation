@@ -51,6 +51,7 @@ grower = VeinGrower.VeinGrower(
 #### Grower inference ####
 
 # options
+<<<<<<< Updated upstream
 image_path = "../data_marion/images/"
 roi_path = "../data_marion/leaf_preds/"
 pred_path = f"../data_marion/vein_{loss}_preds2/"
@@ -60,6 +61,17 @@ roi_extension = "png"
 pred_extension = "png"
 prob_extension = "png"
 n_locs = 10000  # number of seed pixels
+=======
+image_path = '../data_marion/images/'
+roi_path = '../data_marion/leaf_preds/'
+pred_path = f'../data_marion/vein_{loss}_preds/'
+prob_path = f'../data_marion/vein_{loss}_probs/'
+image_extension = '*'
+roi_extension = 'png'
+pred_extension = 'png'
+prob_extension = 'png'
+n_locs = 10000 # number of seed pixels
+>>>>>>> Stashed changes
 batch_size = 2048
 threshold = None
 post_process = True

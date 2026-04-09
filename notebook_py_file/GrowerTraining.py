@@ -27,7 +27,7 @@ if "device" not in locals():
 # options
 image_path = "../data/images/"
 mask_path = "../data/vein_masks/"
-roi_path = "../data/leaf_preds/"
+roi_path = "../data_marion/leaf_preds/"
 image_extension = ".jpeg"
 mask_extension = ".png"
 roi_extension = ".png"
@@ -133,7 +133,8 @@ loss = "fl"  # 'fl' 'bce'
 layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
-save_name = f"vein_grower_{loss}_{window_size}_dropout"
+save_name = f'vein_grower_{loss}_{window_size}_dropout_025_sam3'
+dropout = 0.25
 
 # initialize model and optimizer
 reload(BuildCNN)
