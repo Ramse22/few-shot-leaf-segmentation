@@ -7,7 +7,7 @@ from skimage import measure
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # Load saved masks
-pred_path = "../data_marion/leaf_preds/"
+pred_path = "../data_marion/leaf_preds_sam3/"
 image_path = "../data_marion/images/"
 
 # Convert TIFF images to JPEG
@@ -40,7 +40,13 @@ for pred_idx, pred_file in enumerate(pred_files[:num_examples]):
     # Load image and mask
     if image_file:
         image = np.array(Image.open(image_file), dtype=float) / 255
-        mask = np.array(Image.open(pred_file), dtype=float)[:, :, 0] / 255
+        
+        # Handle both 2D (grayscale) and 3D (RGB) masks
+        mask_array = np.array(Image.open(pred_file), dtype=float)
+        if mask_array.ndim == 3:  # RGB mask
+            mask = mask_array[:, :, 0] / 255
+        else:  # Already 2D grayscale
+            mask = mask_array / 255
 
         # Create overlay plot
         fig = plt.figure(figsize=(fig_size, fig_size * image.shape[0] / image.shape[1]))
@@ -83,7 +89,13 @@ for vein_idx, vein_file in enumerate(vein_files[-num_examples:]):
 
     if image_file:
         image = np.array(Image.open(image_file), dtype=np.float32) / 255
-        vein_mask = np.array(Image.open(vein_file), dtype=np.float32)[:, :, 0] / 255
+        
+        # Handle both 2D (grayscale) and 3D (RGB) vein masks
+        vein_array = np.array(Image.open(vein_file), dtype=np.float32)
+        if vein_array.ndim == 3:  # RGB mask
+            vein_mask = vein_array[:, :, 0] / 255
+        else:  # Already 2D grayscale
+            vein_mask = vein_array / 255
 
         # Create overlay with red veins
         image[vein_mask > 0.5] = [1, 0, 0]

@@ -5,7 +5,7 @@ import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # Define your log file path
-log_file = "../logs_marion/vein_grower_fl_128_dropout.txt"
+log_file = "../logs_marion/vein_grower_fl_128_dropout_025.txt"
 
 rel_save_thresh = 0.0
 
