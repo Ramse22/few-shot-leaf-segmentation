@@ -73,10 +73,10 @@ vein_files = sorted(glob.glob(vein_pred_path + "*.png"))
 print(f"\nFound {len(vein_files)} vein predictions")
 
 # Visualize with overlay
-num_examples = 5
-fig_size = 15
+num_examples = len(vein_files) 
+fig_size = 12
 
-for vein_idx, vein_file in enumerate(vein_files[-num_examples:]):
+for vein_idx, vein_file in enumerate(vein_files): 
     base_name = os.path.splitext(os.path.basename(vein_file))[0]
 
     # Try different image extensions

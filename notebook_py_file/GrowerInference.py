@@ -23,7 +23,7 @@ if "device" not in locals():
 window_size = 128
 loss = "fl"  # 'fl' 'bce'
 weights_path = f"../weights_marion/vein_grower_{loss}_{window_size}_best_val_model.save"
-layers = layers = [3, 32, 32, 32, 32, 64, 128]
+layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
 
@@ -51,27 +51,19 @@ grower = VeinGrower.VeinGrower(
 #### Grower inference ####
 
 # options
-<<<<<<< Updated upstream
 image_path = "../data_marion/images/"
-roi_path = "../data_marion/leaf_preds/"
-pred_path = f"../data_marion/vein_{loss}_preds2/"
-prob_path = f"../data_marion/vein_{loss}_probs2/"
+roi_path = "../data_marion/leaf_preds_sam3/"
+pred_path = f"../data_marion/vein_{loss}_preds_sam3/"
+prob_path = f"../data_marion/vein_{loss}_probs_sam3/"
+
+os.makedirs(pred_path, exist_ok=True)
+os.makedirs(prob_path, exist_ok=True)
+
 image_extension = "*"
 roi_extension = "png"
 pred_extension = "png"
 prob_extension = "png"
 n_locs = 10000  # number of seed pixels
-=======
-image_path = '../data_marion/images/'
-roi_path = '../data_marion/leaf_preds/'
-pred_path = f'../data_marion/vein_{loss}_preds/'
-prob_path = f'../data_marion/vein_{loss}_probs/'
-image_extension = '*'
-roi_extension = 'png'
-pred_extension = 'png'
-prob_extension = 'png'
-n_locs = 10000 # number of seed pixels
->>>>>>> Stashed changes
 batch_size = 2048
 threshold = None
 post_process = True
@@ -111,8 +103,13 @@ for image_idx, image_name in enumerate(image_names):
                 break
 
         if roi_file:
-            roi = np.array(Image.open(roi_file), dtype=np.float32) / 255
-            roi = roi[:, :, 0] > 0.5
+            roi_array = np.array(Image.open(roi_file), dtype=np.float32) / 255
+            
+            # Handle both 2D (grayscale) and 3D (RGB) masks
+            if roi_array.ndim == 3:  # RGB mask
+                roi = roi_array[:, :, 0] > 0.5
+            else:  # Already 2D grayscale
+                roi = roi_array > 0.5
         else:
             roi = None
     else:
