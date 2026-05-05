@@ -1,0 +1,73 @@
+# Experiment metadata
+experiment:
+  name: "vein_grower_v1"
+  description: "Training configuration for vein growing CNN"
+
+# Model selection
+model:
+  type: "vein_grower"  # Options: "vein_grower", "leaf_unet"
+
+# Vein grower CNN parameters
+vein_grower:
+  window_size: 128
+  layers: [3, 32, 32, 32, 32, 64, 128]
+  output_shape: [2, 3, 3]
+  output_activation: "softmax"
+  dropout_rate: 0.3
+  num_convs: 3
+
+# Leaf UNet parameters
+leaf_unet:
+  window_size: 256
+  input_channels: 3
+  output_channels: 1
+  layers: [32, 32, 32, 32, 32, 64, 128]
+  hidden_activation: "leaky_relu"
+  output_activation: "sigmoid"
+  dropout_rate: 0.0
+  num_convs: 3
+
+# Loss function
+loss:
+  type: "fl"  # Options: "bce", "fl"
+  focal_loss:
+    gamma: 2.0
+    alpha: 0.25
+
+# Optimizer settings
+optimizer:
+  learning_rate: 1.0e-3
+
+# Training parameters
+training:
+  epochs: 1000
+  batch_size: 1024
+  workers: 64
+  early_stopping: 20
+  verbose: 2
+  save_best_val: true
+  use_amp: true
+
+# Data paths and settings
+data:
+  image_path: "../data/images/"
+  mask_path: "../data/vein_masks/"
+  roi_path: "../data_marion/leaf_preds/"
+  weights_path: "../weights_marion/"
+  logs_path: "../logs_marion/"
+  image_extension: ".jpeg"
+  mask_extension: ".png"
+  roi_extension: ".png" 
+  dilate: 50
+  val_images:
+    - "C_1_14_18_bot.png"
+    - "C_1_8_1_bot.png"
+
+# Learning rate scheduler
+scheduler:
+  type: "ReduceLROnPlateau"
+  mode: "min"
+  factor: 0.5
+  patience: 2 # changed because no adjustment with 10
+  threshold: 1e-4
+  verbose: true

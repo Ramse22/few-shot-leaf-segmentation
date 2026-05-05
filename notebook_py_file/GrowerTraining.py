@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 import torchinfo
 from importlib import reload
-
+import yaml
 import torch.multiprocessing as mp
 
 mp.set_sharing_strategy("file_system")
@@ -19,19 +19,23 @@ from utils.GetLowestGPU import GetLowestGPU
 import utils.ModelWrapperGenerator as MW
 import models.BuildCNN as BuildCNN
 
+with open("../config/training_config.yaml", "r") as f:
+    config = yaml.safe_load(f)
+
 if "device" not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
 
 #### Load images ####
 
 # options
-image_path = "../data/images/"
-mask_path = "../data/vein_masks/"
-roi_path = "../data_marion/leaf_preds/"
-image_extension = ".jpeg"
-mask_extension = ".png"
-roi_extension = ".png"
-window_size = 128
+# Load config values
+image_path = config["data"]["image_path"]
+mask_path = config["data"]["mask_path"]
+roi_path = config["data"]["roi_path"]
+image_extension = config["data"]["image_extension"]
+mask_extension = config["data"]["mask_extension"]
+roi_extension = config["data"]["roi_extension"]
+window_size = config["vein_grower"]["window_size"]
 verbose = True
 plot = True
 figsize = 5
@@ -80,8 +84,9 @@ if plot:
 #### Make data loader ####
 
 # options
-val_img_idx = [file_names.index(l) for l in ["C_1_14_18_bot.png", "C_1_8_1_bot.png"]]
-dilate = 50
+val_images = config["data"]["val_images"]
+val_img_idx = [file_names.index(l) for l in val_images]
+dilate = config["data"]["dilate"]
 plot = True
 
 # instantiate data loaders
@@ -128,51 +133,60 @@ if plot:
 
 #### Train vein growing CNN ####
 
-# options
-loss = "fl"  # 'fl' 'bce'
-layers = [3, 32, 32, 32, 32, 64, 128]
-output_shape = [2, 3, 3]
+# Load config parameters values
+loss_type = config["loss"]["type"]
+layers = config["vein_grower"]["layers"]
+output_shape = config["vein_grower"]["output_shape"]
 output_activation = torch.nn.Softmax2d()
-save_name = f'vein_grower_{loss}_{window_size}_dropout_025_sam3'
-dropout = 0.25
+learning_rate = config["optimizer"]["learning_rate"]
+dropout_rate = config["vein_grower"]["dropout_rate"]
+num_convs = config["vein_grower"]["num_convs"]
 
-# initialize model and optimizer
+save_name = f"vein_grower_{loss_type}_{window_size}"
+
+# initialize model
 reload(BuildCNN)
 cnn = BuildCNN.CNN(
     window_size=window_size,
     layers=layers,
     output_shape=output_shape,
     output_activation=output_activation,
+    dropout_rate=dropout_rate,
+    num_convs=num_convs,
 ).to(device)
 
-opt = torch.optim.Adam(cnn.parameters(), lr=5e-3)
+opt = torch.optim.Adam(cnn.parameters(), lr=learning_rate)
 
+# Focal loss
+if loss_type == "fl":
+    gamma = config["loss"]["focal_loss"]["gamma"]
+    alpha = config["loss"]["focal_loss"]["alpha"]
 
-# focal loss
-gamma, alpha = 2.0, 0.25
+    def FocalLoss(pred, target):
+        pred = pred.clamp(min=1e-7, max=1.0 - 1e-7)
+        pt_1 = torch.where(target == 1, pred, torch.ones_like(pred))
+        pt_0 = torch.where(target == 0, pred, torch.zeros_like(pred))
+        out = -torch.mean(alpha * ((1.0 - pt_1) ** gamma) * torch.log(pt_1))
+        out = out - torch.mean((1.0 - alpha) * (pt_0**gamma) * torch.log(1.0 - pt_0))
+        return out
 
+    loss_fn = FocalLoss
+else:
+    loss_fn = torch.nn.BCELoss()
 
-def FocalLoss(pred, target):
-    pred = pred.clamp(min=1e-7, max=1.0 - 1e-7)
-    pt_1 = torch.where(target == 1, pred, torch.ones_like(pred))
-    pt_0 = torch.where(target == 0, pred, torch.zeros_like(pred))
-    out = -torch.mean(alpha * ((1.0 - pt_1) ** gamma) * torch.log(pt_1))
-    out = out - torch.mean((1.0 - alpha) * (pt_0**gamma) * torch.log(1.0 - pt_0))
-    return out
-
-
-# Reduce learning rate when validation loss plateaus
+# Learning rate scheduler (from yaml config)
+scheduler_config = config["scheduler"]
 scheduler_before_Plateau = {
-    "mode": "min",
-    "factor": 0.5,
-    "patience": 10,
-    "threshold": 1e-4,
+    "mode": scheduler_config["mode"],
+    "factor": scheduler_config["factor"],
+    "patience": scheduler_config["patience"],
+    "threshold": scheduler_config["threshold"],
 }
 if (
     "verbose"
     in torch.optim.lr_scheduler.ReduceLROnPlateau.__init__.__code__.co_varnames
 ):
-    scheduler_before_Plateau["verbose"] = True
+    scheduler_before_Plateau["verbose"] = scheduler_config.get("verbose", True)
 
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, **scheduler_before_Plateau)
 
@@ -181,30 +195,32 @@ reload(MW)
 model = MW.ModelWrapper(
     model=cnn,
     optimizer=opt,
-    loss=FocalLoss,
+    loss=loss_fn,
     scheduler=scheduler,
-    save_name=f"../weights_marion/{save_name}",
-    log_name=f"../logs_marion/{save_name}.txt",
+    save_name=f"{config['data']['weights_path']}{save_name}",
+    log_name=f"{config['data']['logs_path']}{save_name}.txt",
     device=device,
+    config_dict=config,
 )
 
 # model summary
 torchinfo.summary(cnn, input_size=(1, 3, window_size, window_size), device=device)
-
+model.use_amp = config["training"].get("use_amp", False)
 
 #### run model ####
 
-epochs = 50
-batch_size = 1024
-workers = 32
-early_stopping = 10
+# Load config parameters values
+epochs = config["training"]["epochs"]
+batch_size = config["training"]["batch_size"]
+workers = config["training"]["workers"]
+early_stopping = config["training"]["early_stopping"]
 
 model.fit(
     train_dataset=train_dataset,
     validation_dataset=val_dataset,
     batch_size=batch_size,
     epochs=epochs,
-    verbose=2,
+    verbose=config["training"]["verbose"],
     early_stopping=early_stopping,
     workers=workers,
 )

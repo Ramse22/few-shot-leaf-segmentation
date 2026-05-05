@@ -104,7 +104,7 @@ for image_idx, image_name in enumerate(image_names):
 
         if roi_file:
             roi_array = np.array(Image.open(roi_file), dtype=np.float32) / 255
-            
+
             # Handle both 2D (grayscale) and 3D (RGB) masks
             if roi_array.ndim == 3:  # RGB mask
                 roi = roi_array[:, :, 0] > 0.5
