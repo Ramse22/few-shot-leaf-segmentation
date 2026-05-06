@@ -88,19 +88,28 @@ class ModelWrapper:
         # Generate timestamp for file naming
         timestamp = datetime.datetime.now().strftime("%m%d%H%M%S%f")
         self.config_dict = config_dict
-
-        # Add timestamp to save_name and log_name if they are provided
+        self.timestamp = timestamp
+        
+        # Create run-specific directory structure
+        run_dir = f"../results/run_{timestamp}"
+        weights_dir = f"{run_dir}/weights"
+        logs_dir = f"{run_dir}/logs"
+        
+        os.makedirs(weights_dir, exist_ok=True)
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Set save_name and log_name with new structure
         if save_name is not None:
-            self.save_name = f"{save_name}_{timestamp}"
+            # Extract just the model name (e.g., "vein_grower_fl_128")
+            model_name = save_name.split('/')[-1]  # Get last part if it's a path
+            self.save_name = f"{weights_dir}/{model_name}"
         else:
             self.save_name = None
 
         if log_name is not None:
-            # Split the log_name to insert timestamp before the file extension
-            if log_name.endswith(".txt"):
-                self.log_name = f"{log_name[:-4]}_{timestamp}.txt"
-            else:
-                self.log_name = f"{log_name}_{timestamp}"
+            # Extract just the log name
+            log_filename = log_name.split('/')[-1].replace('.txt', '')
+            self.log_name = f"{logs_dir}/{log_filename}.txt"
         else:
             self.log_name = None
 

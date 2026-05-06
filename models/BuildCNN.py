@@ -22,7 +22,7 @@ class CNN(torch.nn.Module):
         x (tensor): batch of output tensors [B, output_shape]
     """
 
-    def __init__(self, window_size, layers, output_shape, output_activation=None):
+    def __init__(self, window_size, layers, output_shape, output_activation=None, dropout_rate=0.0, num_convs=3):
 
         # initialize
         super().__init__()
@@ -31,6 +31,8 @@ class CNN(torch.nn.Module):
         self.layers = layers[1:]
         self.output_shape = output_shape
         self.output_activation = output_activation
+        self.dropout_rate = dropout_rate
+        self.num_convs = num_convs
         self.outputs = (
             self.layers[-1] * int(window_size / 2 ** (len(self.layers) - 1)) ** 2
         )
@@ -41,9 +43,9 @@ class CNN(torch.nn.Module):
             layers=self.layers,
             activation=torch.nn.LeakyReLU(),
             pool="max",
-            num_convs=3,
+            num_convs=num_convs,
             use_batchnorm=True,
-            dropout_rate=0.5,
+            dropout_rate=dropout_rate,
         )
 
         # conv + reshape

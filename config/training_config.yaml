@@ -1,11 +1,11 @@
 # Experiment metadata
 experiment:
-  name: "vein_grower_v1"
-  description: "Training configuration for vein growing CNN"
+  name: "vein_grower_test"
+  description: "TEST configuration - 10 patches only for local development"
 
 # Model selection
 model:
-  type: "vein_grower"  # Options: "vein_grower", "leaf_unet"
+  type: "vein_grower"
 
 # Vein grower CNN parameters
 vein_grower:
@@ -40,34 +40,34 @@ optimizer:
 
 # Training parameters
 training:
-  epochs: 1000
-  batch_size: 1024
-  workers: 64
-  early_stopping: 20
+  epochs: 5                # ← REDUCED from 1000 (quick test)
+  batch_size: 16           # ← REDUCED from 1024 (saves memory)
+  workers: 1               # ← REDUCED from 64 (avoid worker overhead)
+  early_stopping: 5        # ← REDUCED from 20
   verbose: 2
   save_best_val: true
   use_amp: true
 
-# Data paths and settings
+# Data paths and settings - POINT TO TEST PATCHES
 data:
-  image_path: "../data/images/"
-  mask_path: "../data/vein_masks/"
-  roi_path: "../data_marion/leaf_preds/"
-  weights_path: "../weights_marion/"
-  logs_path: "../logs_marion/"
+  image_path: "../data_marion/test_patches/image/"
+  mask_path: "../data_marion/test_patches/vein_mask/"
+  roi_path: "../data_marion/test_patches/leaf_mask/"
+  weights_path: "../weights_test/"
+  logs_path: "../logs_test/"
   image_extension: ".jpeg"
   mask_extension: ".png"
   roi_extension: ".png" 
   dilate: 50
   val_images:
-    - "C_1_14_18_bot.png"
-    - "C_1_8_1_bot.png"
+    - "patch_00.png"       # ← Use first patch as validation
+    - "patch_01.png"       # ← Use second patch as validation
 
 # Learning rate scheduler
 scheduler:
   type: "ReduceLROnPlateau"
   mode: "min"
   factor: 0.5
-  patience: 2 # changed because no adjustment with 10
+  patience: 2
   threshold: 1e-4
   verbose: true
