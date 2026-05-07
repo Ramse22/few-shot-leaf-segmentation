@@ -1,4 +1,4 @@
-import os, glob
+import os, glob, random
 import numpy as np
 from PIL import Image
 from tqdm.notebook import tqdm
@@ -22,6 +22,8 @@ class ImageLoader:
         window_size (int): width of the CNN input (e.g., 256)
         pad        (bool): whether to pad images and masks
         verbose    (bool): whether to update user during data loading
+        seed       (int): seed for reproducible train/val split
+        val_split (float): fraction of data to use for validation (0.0-1.0)
 
     Returns:
         images     (list): float arrays containing normalized RGB images
@@ -40,6 +42,8 @@ class ImageLoader:
         window_size=256,
         pad=True,
         verbose=False,
+        seed=None,
+        val_split=0.2,
     ):
 
         super().__init__()
@@ -52,12 +56,25 @@ class ImageLoader:
         self.window_size = window_size
         self.pad = pad
         self.verbose = verbose
+        self.seed = seed
+        self.val_split = val_split
         self.file_names = [
             os.path.basename(f) for f in glob.glob(self.mask_path + "*" + self.mask_ext)
         ]
+        self.val_img_idx = None  # Will be set during load_data()
 
     def __len__(self):
         return len(self.file_names)
+
+    def _generate_val_split(self):
+        """Generate reproducible validation indices using seed."""
+        if self.seed is not None:
+            random.seed(self.seed)
+            np.random.seed(self.seed)
+        
+        num_val = max(1, int(len(self.file_names) * self.val_split))
+        self.val_img_idx = sorted(random.sample(range(len(self.file_names)), k=num_val))
+        return self.val_img_idx
 
     def load_image(self, path, pad=None):
 
@@ -109,6 +126,9 @@ class ImageLoader:
         return mask.astype(bool)
 
     def load_data(self):
+
+        # Generate reproducible validation split
+        self._generate_val_split()
 
         images, masks, rois = [], [], []
         file_names = tqdm(self.file_names) if self.verbose else self.file_names

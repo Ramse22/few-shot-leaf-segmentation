@@ -2,6 +2,8 @@ import os
 import numpy as np
 from PIL import Image
 
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
 def divide_image_into_patches(image, n_patches_h=3, n_patches_w=4):
     """
     Divide an image into n_patches_h x n_patches_w equal patches (10 total)
@@ -23,9 +25,37 @@ def divide_image_into_patches(image, n_patches_h=3, n_patches_w=4):
     
     return patches
 
+def add_padding_to_patches(patches, window_size=128, padding_factor=1.5):
+    """
+    Add padding to patches to allow safe rotation sampling
+    padding_factor = 1.5 means 50% more padding than window_size/2
+    """
+    pad_size = int(window_size / 2 * padding_factor)
+    padded_patches = []
+    
+    for patch in patches:
+        # Add constant padding (black border)
+        if len(patch.shape) == 3:  # RGB image
+            padded = np.pad(
+                patch,
+                pad_width=[[pad_size, pad_size], [pad_size, pad_size], [0, 0]],
+                mode='constant',
+                constant_values=0
+            )
+        else:  # Grayscale mask
+            padded = np.pad(
+                patch,
+                pad_width=[[pad_size, pad_size], [pad_size, pad_size]],
+                mode='constant',
+                constant_values=0
+            )
+        padded_patches.append(padded)
+    
+    return padded_patches
+
 def create_test_patches():
     """
-    Divide C_1_4_19_bot image into 10 patches and save to data_marion/test_patches/
+    Divide C_1_4_19_bot image into 10 patches with padding and save to data_marion/test_patches/
     """
     # Create output directories
     output_dir = "../data_marion/test_patches"
@@ -49,10 +79,17 @@ def create_test_patches():
     vein_patches = divide_image_into_patches(vein_mask, n_patches_h=3, n_patches_w=4)
     leaf_patches = divide_image_into_patches(leaf_mask, n_patches_h=3, n_patches_w=4)
     
+    # Add padding to patches
+    print("Adding padding to patches...")
+    window_size = 128
+    image_patches_padded = add_padding_to_patches(image_patches, window_size=window_size, padding_factor=1.5)
+    vein_patches_padded = add_padding_to_patches(vein_patches, window_size=window_size, padding_factor=1.5)
+    leaf_patches_padded = add_padding_to_patches(leaf_patches, window_size=window_size, padding_factor=1.5)
+    
     # Save patches
-    print(f"\nSaving patches to {output_dir}...")
+    print(f"\nSaving padded patches to {output_dir}...")
     for i, (img_patch, vein_patch, leaf_patch) in enumerate(
-        zip(image_patches, vein_patches, leaf_patches)
+        zip(image_patches_padded, vein_patches_padded, leaf_patches_padded)
     ):
         patch_name = f"patch_{i:02d}"
         
@@ -65,9 +102,9 @@ def create_test_patches():
         # Save leaf mask (ROI)
         Image.fromarray(leaf_patch).save(f"{output_dir}/leaf_mask/{patch_name}.png")
         
-        print(f"  Saved patch {i+1}/10")
+        print(f"  Saved patch {i+1}/10 - Shape after padding: {img_patch.shape}")
     
-    print(f"\n✓ Created {len(image_patches)} test patches!")
+    print(f"\n Created {len(image_patches_padded)} padded test patches")
     print(f"  Location: {output_dir}/")
 
 if __name__ == "__main__":

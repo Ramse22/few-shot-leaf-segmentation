@@ -179,12 +179,10 @@ class ModelWrapper:
             with open(self.log_name, "w") as f:
                 f.writelines("Epoch,Train Loss,Val Loss,LR\n")
 
-        # Save config copy with same timestamp
+        # Save config copy inside the run folder with same timestamp
         if self.config_dict is not None and self.save_name is not None:
-            timestamp = self.save_name.split("_")[-1]
-            config_dir = "../results/training_configs"
-            os.makedirs(config_dir, exist_ok=True)  # Create dir if it doesn't exist
-            config_filename = f"{config_dir}/config_{timestamp}.yaml"
+            run_dir = f"../results/run_{self.timestamp}"
+            config_filename = f"{run_dir}/config.yaml"
             with open(config_filename, "w") as f:
                 yaml.dump(self.config_dict, f)
 

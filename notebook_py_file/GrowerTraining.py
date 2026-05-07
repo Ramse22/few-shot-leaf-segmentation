@@ -19,7 +19,7 @@ from utils.GetLowestGPU import GetLowestGPU
 import utils.ModelWrapperGenerator as MW
 import models.BuildCNN as BuildCNN
 
-with open("../config/training_config.yaml", "r") as f:
+with open("../config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
 if "device" not in locals():
@@ -38,6 +38,7 @@ roi_extension = config["data"]["roi_extension"]
 window_size = config["vein_grower"]["window_size"]
 verbose = True
 plot = True
+val_split = config["data"]["val_split"]
 figsize = 5
 
 # initialize loader
@@ -83,11 +84,11 @@ if plot:
 
 #### Make data loader ####
 
-# options
-val_images = config["data"]["val_images"]
-val_img_idx = [file_names.index(l) for l in val_images]
 dilate = config["data"]["dilate"]
 plot = True
+
+# Get reproducible validation split from ImageLoader
+val_img_idx = IL.val_img_idx
 
 # instantiate data loaders
 reload(VeinGenerator)
