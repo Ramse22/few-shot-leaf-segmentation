@@ -51,9 +51,9 @@ training:
 
 # Data paths and settings
 data:
-  image_path: "../data_marion/image/"
+  image_path: "../data/image/"
   mask_path: "../data_marion/vein_mask/"
-  roi_path: "../data_marion/leaf_mask/"
+  roi_path: "../data_marion/leaf_preds_jlag/"
   weights_path: "../results/"
   logs_path: "../results/"
   image_extension: ".jpeg"
