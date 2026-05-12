@@ -23,7 +23,7 @@ class ImageLoader:
         pad        (bool): whether to pad images and masks
         verbose    (bool): whether to update user during data loading
         seed       (int): seed for reproducible train/val split
-        val_split (float): fraction of data to use for validation (0.0-1.0)
+        val_split  (float): fraction of data to use for validation (0.0-1.0)
 
     Returns:
         images     (list): float arrays containing normalized RGB images
@@ -71,7 +71,7 @@ class ImageLoader:
         if self.seed is not None:
             random.seed(self.seed)
             np.random.seed(self.seed)
-        
+
         num_val = max(1, int(len(self.file_names) * self.val_split))
         self.val_img_idx = sorted(random.sample(range(len(self.file_names)), k=num_val))
         return self.val_img_idx

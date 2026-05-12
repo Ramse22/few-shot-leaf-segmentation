@@ -22,7 +22,15 @@ class CNN(torch.nn.Module):
         x (tensor): batch of output tensors [B, output_shape]
     """
 
-    def __init__(self, window_size, layers, output_shape, output_activation=None, dropout_rate=0.0, num_convs=3):
+    def __init__(
+        self,
+        window_size,
+        layers,
+        output_shape,
+        output_activation=None,
+        dropout_rate=0.0,
+        num_convs=3,
+    ):
 
         # initialize
         super().__init__()
