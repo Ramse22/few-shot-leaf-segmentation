@@ -44,6 +44,16 @@ plot = True
 val_split = config["data"]["val_split"]
 figsize = 5
 
+# Load config seed
+seed = config["experiment"]["seed"]
+
+# Set seeds
+if seed is not None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
 # initialize loader
 reload(ImageLoader)
 IL = ImageLoader.ImageLoader(
