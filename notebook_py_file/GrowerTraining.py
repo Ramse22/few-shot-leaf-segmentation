@@ -73,6 +73,22 @@ time.sleep(0.3)
 images, masks, rois = IL.load_data()
 file_names = IL.file_names
 
+print("=== Shape check ===")
+for i in range(len(images)):
+    print(
+        f"[{i}] image: {images[i].shape}, mask: {masks[i].shape}, roi: {rois[i].shape}"
+    )
+
+print("=== ROI coverage check ===")
+for i in range(len(rois)):
+    roi_pixels = rois[i].sum()
+    mask_pixels = masks[i].sum()
+    total_pixels = rois[i].shape[0] * rois[i].shape[1]
+    print(
+        f"[{i}] ROI: {roi_pixels:,} px ({100 * roi_pixels / total_pixels:.1f}%), "
+        f"vein mask: {mask_pixels:,} px ({100 * mask_pixels / roi_pixels:.2f}% of ROI)"
+    )
+
 # add mask to roi to include petiole
 rois = [(rois[i] + masks[i]).clip(0, 1) for i in range(len(rois))]
 

@@ -66,15 +66,15 @@ class ImageLoader:
     def __len__(self):
         return len(self.file_names)
 
-    def _generate_val_split(self):
-        """Generate reproducible validation indices using seed."""
-        if self.seed is not None:
-            random.seed(self.seed)
-            np.random.seed(self.seed)
 
-        num_val = max(1, int(len(self.file_names) * self.val_split))
-        self.val_img_idx = sorted(random.sample(range(len(self.file_names)), k=num_val))
-        return self.val_img_idx
+def _generate_val_split(self):
+    """Generate reproducible validation indices using seed."""
+    # Use isolated Random instance - doesn't affect global random state
+    rng = random.Random(self.seed)
+
+    num_val = max(1, int(len(self.file_names) * self.val_split))
+    self.val_img_idx = sorted(rng.sample(range(len(self.file_names)), k=num_val))
+    return self.val_img_idx
 
     def load_image(self, path, pad=None):
 
