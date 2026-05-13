@@ -19,7 +19,10 @@ from utils.GetLowestGPU import GetLowestGPU
 import utils.ModelWrapperGenerator as MW
 import models.BuildCNN as BuildCNN
 
-with open("../config.yaml", "r") as f:
+# Get config file from command line argument or use default
+config_file = sys.argv[1] if len(sys.argv) > 1 else "../config.yaml"
+
+with open(config_file, "r") as f:
     config = yaml.safe_load(f)
 
 if "device" not in locals():

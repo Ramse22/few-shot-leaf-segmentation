@@ -53,7 +53,7 @@ training:
 data:
   image_path: "../data/images/"
   mask_path: "../data/vein_masks/"
-  roi_path: "../data_marion/leaf_preds_jlag/"
+  roi_path: "../data/leaf_preds/"
   weights_path: "../results/"
   logs_path: "../results/"
   image_extension: ".jpeg"
