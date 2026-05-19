@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 from importlib import reload
+import yaml
 from skimage import measure
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -14,18 +15,44 @@ import models.BuildCNN as BuildCNN
 import models.VeinGrower as VeinGrower
 from utils.GetLowestGPU import GetLowestGPU
 
+
+def build_output_activation(name):
+    if name is None:
+        return None
+
+    name = str(name).lower()
+    if name == "softmax":
+        return torch.nn.Softmax2d()
+    if name == "sigmoid":
+        return torch.nn.Sigmoid()
+
+    raise ValueError(f"Unsupported output activation: {name}")
+
+
 if "device" not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
+
+# Get config file from command line argument or use default
+config_file = sys.argv[1] if len(sys.argv) > 1 else "../config_inference.yaml"
+
+with open(config_file, "r") as f:
+    config = yaml.safe_load(f)
 
 #### initialize grower ####
 
 # options
-window_size = 128
-loss = "fl"  # 'fl' 'bce'
-weights_path = f"../weights_marion/vein_grower_{loss}_{window_size}_best_val_model.save"
-layers = [3, 32, 32, 32, 32, 64, 128]
-output_shape = [2, 3, 3]
-output_activation = torch.nn.Softmax2d()
+loss = config["loss"]["type"]
+window_size = config["vein_grower"]["window_size"]
+layers = config["vein_grower"]["layers"]
+output_shape = config["vein_grower"]["output_shape"]
+output_activation = build_output_activation(
+    config["vein_grower"].get("output_activation")
+)
+inference_config = config.get("inference", {})
+weights_path = inference_config.get(
+    "model_weights_path",
+    f"../weights_marion/vein_grower_{loss}_{window_size}_best_val_model.save",
+)
 
 # load CNN model
 print("loading cnn model...")
@@ -51,27 +78,29 @@ grower = VeinGrower.VeinGrower(
 #### Grower inference ####
 
 # options
-image_path = "../data_marion/images/"
-roi_path = "../data_marion/leaf_preds_sam3/"
-pred_path = f"../data_marion/vein_{loss}_preds_sam3/"
-prob_path = f"../data_marion/vein_{loss}_probs_sam3/"
+image_path = config["data"]["image_path"]
+roi_path = config["data"]["roi_path"]
+pred_path = inference_config["pred_path"]
+prob_path = inference_config["prob_path"]
 
 os.makedirs(pred_path, exist_ok=True)
 os.makedirs(prob_path, exist_ok=True)
 
-image_extension = "*"
-roi_extension = "png"
-pred_extension = "png"
-prob_extension = "png"
-n_locs = 10000  # number of seed pixels
-batch_size = 2048
-threshold = None
-post_process = True
-max_number = None  # number of images to segment, set to None for all images
-verbose = True
-save = True
-show = True
-fig_size = 15
+image_extension = config["data"].get("image_extension", "*")
+roi_extension = config["data"].get("roi_extension", "png")
+pred_extension = inference_config.get("pred_extension", "png")
+prob_extension = inference_config.get("prob_extension", "png")
+n_locs = inference_config.get("n_locs", 10000)  # number of seed pixels
+batch_size = inference_config.get("batch_size", 2048)
+threshold = inference_config.get("threshold", None)
+post_process = inference_config.get("post_process", True)
+max_number = inference_config.get(
+    "max_number", inference_config.get("num_predictions", None)
+)  # number of images to segment, set to None for all images
+verbose = inference_config.get("verbose", True)
+save = inference_config.get("save", True)
+show = inference_config.get("show", True)
+fig_size = inference_config.get("fig_size", 15)
 
 # get image paths
 image_names = []

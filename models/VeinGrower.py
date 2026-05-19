@@ -27,28 +27,27 @@ class TileGenerator(Dataset):
     def __len__(self):
         return len(self.indices)
 
+    def __getitem__(self, index):
+        idx = torch.tensor(self.indices[index], dtype=torch.long)
+        i, j = idx[0], idx[1]
 
-def __getitem__(self, index):
-    idx = torch.tensor(self.indices[index], dtype=torch.long)
-    i, j = idx[0], idx[1]
+        # Clamp indices to image bounds
+        i_start = max(0, i - self.w)
+        i_end = min(self.image.shape[1], i + self.w)
+        j_start = max(0, j - self.w)
+        j_end = min(self.image.shape[2], j + self.w)
 
-    # Clamp indices to image bounds
-    i_start = max(0, i - self.w)
-    i_end = min(self.image.shape[1], i + self.w)
-    j_start = max(0, j - self.w)
-    j_end = min(self.image.shape[2], j + self.w)
+        tile = self.image[:, i_start:i_end, j_start:j_end]
 
-    tile = self.image[:, i_start:i_end, j_start:j_end]
+        # Pad if too small
+        expected_size = 2 * self.w
+        if tile.shape[1] < expected_size or tile.shape[2] < expected_size:
+            pad_h = expected_size - tile.shape[1]
+            pad_w = expected_size - tile.shape[2]
+            tile = np.pad(tile, ((0, 0), (0, pad_h), (0, pad_w)), mode="edge")
 
-    # Pad if too small
-    expected_size = 2 * self.w
-    if tile.shape[1] < expected_size or tile.shape[2] < expected_size:
-        pad_h = expected_size - tile.shape[1]
-        pad_w = expected_size - tile.shape[2]
-        tile = np.pad(tile, ((0, 0), (0, pad_h), (0, pad_w)), mode="edge")
-
-    x = torch.tensor(tile, dtype=torch.float)
-    return idx, x
+        x = torch.tensor(tile, dtype=torch.float)
+        return idx, x
 
 
 class VeinGrower:
