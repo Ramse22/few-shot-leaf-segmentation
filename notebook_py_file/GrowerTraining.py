@@ -47,13 +47,6 @@ figsize = 5
 # Load config seed
 seed = config["experiment"]["seed"]
 
-# Set seeds
-if seed is not None:
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
 # initialize loader
 reload(ImageLoader)
 IL = ImageLoader.ImageLoader(
@@ -65,6 +58,8 @@ IL = ImageLoader.ImageLoader(
     roi_ext=roi_extension,
     window_size=window_size,
     verbose=verbose,
+    seed=seed,
+    val_split=val_split,
 )
 
 # load data
