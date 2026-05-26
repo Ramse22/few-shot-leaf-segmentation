@@ -5,7 +5,7 @@ import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # Define your log file path
-log_file = "../results/run_0511183535933370/logs/vein_grower_fl_128.txt"
+log_file = "../results/run_0512174615234682/logs/vein_grower_fl_128.txt"
 
 rel_save_thresh = 0.0
 

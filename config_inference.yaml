@@ -1,88 +1,64 @@
+# Inference configuration for VeinGrower
+# This config file is used by GrowerInference.py to run full-image vein inference
+
 # Experiment metadata
 experiment:
-  name: "vein_inference_test"
-  description: "first inference test"
+  name: "vein_grower_inference"
+  description: "Inference with VeinGrower on full images"
   seed: 6783
 
 # Model selection
 model:
   type: "vein_grower"
 
-# Vein grower CNN parameters
+# Vein grower CNN parameters (must match training config)
 vein_grower:
   window_size: 128
   layers: [3, 32, 32, 32, 32, 64, 128]
-  output_shape: [2, 3, 3]
+  output_shape: [3, 3]
   output_activation: "softmax"
   dropout_rate: 0.3
   num_convs: 3
 
-# Leaf UNet parameters
-leaf_unet:
-  window_size: 256
-  input_channels: 3
-  output_channels: 1
-  layers: [32, 32, 32, 32, 32, 64, 128]
-  hidden_activation: "leaky_relu"
-  output_activation: "sigmoid"
-  dropout_rate: 0.0
-  num_convs: 3
-
-# Loss function
+# Loss function (for reference)
 loss:
   type: "fl"  # Options: "bce", "fl"
   focal_loss:
     gamma: 2.0
     alpha: 0.25
 
-# Optimizer settings
-optimizer:
-  learning_rate: 1.0e-3
-
-# Training parameters
-training:
-  epochs: 50
-  batch_size: 1024
-  workers: 32
-  early_stopping: 10
-  verbose: 2
-  save_best_val: true
-  use_amp: true
-
-# Data paths and settings
+# Data paths and extensions
 data:
-  image_path: "../data/images/"
-  mask_path: "../data/vein_masks/"
-  roi_path: "../data_marion/leaf_preds/"
-  weights_path: "../results/"
-  logs_path: "../results/"
-  image_extension: ".jpeg"
-  mask_extension: ".png"
-  roi_extension: ".png" 
-  dilate: 50
-  val_split: 0.2    
+  roi_extension: "png"
+  image_extension: "jpeg"
+  mask_extension: "png"
 
-# Learning rate scheduler
-scheduler:
-  type: "ReduceLROnPlateau"
-  mode: "min"
-  factor: 0.5
-  patience: 2
-  threshold: 0.0001
-  verbose: true
-
+# Inference parameters
 inference:
-  model_weights_path: "../results/run_0512174615234682/weights/vein_grower_fl_128.save"
-  pred_path: "../results/run_0512174615234682/vein_preds/"
-  prob_path: "../results/run_0512174615234682/vein_probs/"
+  # Model weights to load
+  model_weights_path: "results/run_0511183535933370/weights/vein_grower_fl_128_best_val_model.save"
+  
+  # Input/output paths
+  image_path: "../data_marion/images/"
+  roi_path: "../data_marion/leaf_preds_sam3/"
+  
+  # Output paths for predictions
+  pred_path: "../data_marion/vein_fl_preds_sam3/"
+  prob_path: "../data_marion/vein_fl_probs_sam3/"
+  
+  # File extensions for outputs
   pred_extension: "png"
   prob_extension: "png"
-  n_locs: 10000
-  batch_size: 2048
-  threshold: null
-  post_process: true
-  max_number: null
-  verbose: true
-  save: true
-  show: true
-  fig_size: 15
+  
+  # Growing algorithm parameters
+  n_locs: 10000              # Number of seed pixels to start growing from
+  batch_size: 2048           # Batch size for CNN predictions
+  threshold: null            # Threshold for binarizing predictions (null = use default)
+  post_process: true         # Whether to apply post-processing (morphological operations)
+  
+  # Inference options
+  max_number: null           # Maximum number of images to process (null = all images)
+  verbose: true              # Print progress messages
+  save: true                 # Save predictions to disk
+  show: true                 # Display plots during inference
+  fig_size: 15               # Figure size for plots
