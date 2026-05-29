@@ -14,6 +14,7 @@ class CNN(torch.nn.Module):
         layers                (list): layer sizes (e.g., [32, 32, 32, 32, 64, 128])
         output_shape          (list): shape of the CNN output (e.g., [2, 128])
         output_activation (callable): optional output activation function
+        dropout_rate        (float): dropout probability used in CNN blocks
 
     Inputs:
         x (tensor): batch of input image tensors [B, C, W, W]
@@ -28,8 +29,7 @@ class CNN(torch.nn.Module):
         layers,
         output_shape,
         output_activation=None,
-        dropout_rate=0.0,
-        num_convs=3,
+        dropout_rate=0.5,
     ):
 
         # initialize
@@ -40,7 +40,6 @@ class CNN(torch.nn.Module):
         self.output_shape = output_shape
         self.output_activation = output_activation
         self.dropout_rate = dropout_rate
-        self.num_convs = num_convs
         self.outputs = (
             self.layers[-1] * int(window_size / 2 ** (len(self.layers) - 1)) ** 2
         )
@@ -51,9 +50,9 @@ class CNN(torch.nn.Module):
             layers=self.layers,
             activation=torch.nn.LeakyReLU(),
             pool="max",
-            num_convs=num_convs,
+            num_convs=3,
             use_batchnorm=True,
-            dropout_rate=dropout_rate,
+            dropout_rate=self.dropout_rate,
         )
 
         # conv + reshape

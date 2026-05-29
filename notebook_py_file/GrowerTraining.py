@@ -6,6 +6,11 @@ import torch
 import torchinfo
 from importlib import reload
 import yaml
+import shutil
+from pathlib import Path
+from datetime import datetime
+
+
 import torch.multiprocessing as mp
 
 mp.set_sharing_strategy("file_system")
@@ -19,33 +24,36 @@ from utils.GetLowestGPU import GetLowestGPU
 import utils.ModelWrapperGenerator as MW
 import models.BuildCNN as BuildCNN
 
-# Get config file from command line argument or use default
-config_file = sys.argv[1] if len(sys.argv) > 1 else "../config.yaml"
-
-with open(config_file, "r") as f:
-    config = yaml.safe_load(f)
-
 if "device" not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
+
+#### Load config ####
+
+with open("../configs/config_test.yaml", "r") as f:
+    config = yaml.safe_load(f)
+
+run_name = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+weights_root = Path(config["data"]["weights_path"])
+logs_root = Path(config["data"]["logs_path"])
+weights_run_dir = weights_root / run_name
+logs_run_dir = logs_root / run_name
+weights_run_dir.mkdir(parents=True, exist_ok=True)
+logs_run_dir.mkdir(parents=True, exist_ok=True)
+shutil.copy2(Path("../configs/config_test.yaml"), weights_run_dir / "config_test.yaml")
 
 #### Load images ####
 
 # options
-# Load config values
 image_path = config["data"]["image_path"]
 mask_path = config["data"]["mask_path"]
 roi_path = config["data"]["roi_path"]
 image_extension = config["data"]["image_extension"]
 mask_extension = config["data"]["mask_extension"]
 roi_extension = config["data"]["roi_extension"]
-window_size = config["vein_grower"]["window_size"]
+window_size = config["data"]["window_size"]
 verbose = True
 plot = True
-val_split = config["data"]["val_split"]
 figsize = 5
-
-# Load config seed
-seed = config["experiment"]["seed"]
 
 # initialize loader
 reload(ImageLoader)
@@ -58,8 +66,6 @@ IL = ImageLoader.ImageLoader(
     roi_ext=roi_extension,
     window_size=window_size,
     verbose=verbose,
-    seed=seed,
-    val_split=val_split,
 )
 
 # load data
@@ -67,22 +73,6 @@ print("Loading data...")
 time.sleep(0.3)
 images, masks, rois = IL.load_data()
 file_names = IL.file_names
-
-print("=== Shape check ===")
-for i in range(len(images)):
-    print(
-        f"[{i}] image: {images[i].shape}, mask: {masks[i].shape}, roi: {rois[i].shape}"
-    )
-
-print("=== ROI coverage check ===")
-for i in range(len(rois)):
-    roi_pixels = rois[i].sum()
-    mask_pixels = masks[i].sum()
-    total_pixels = rois[i].shape[0] * rois[i].shape[1]
-    print(
-        f"[{i}] ROI: {roi_pixels:,} px ({100 * roi_pixels / total_pixels:.1f}%), "
-        f"vein mask: {mask_pixels:,} px ({100 * mask_pixels / roi_pixels:.2f}% of ROI)"
-    )
 
 # add mask to roi to include petiole
 rois = [(rois[i] + masks[i]).clip(0, 1) for i in range(len(rois))]
@@ -108,11 +98,29 @@ if plot:
 
 #### Make data loader ####
 
-dilate = config["data"]["dilate"]
-plot = True
+# options
+split_cfg = config["data_split"]
+random_split_cfg = split_cfg.get("random_split")
+if random_split_cfg is not None:
+    seed = int(random_split_cfg.get("seed", 42))
+    val_fraction = float(random_split_cfg.get("val_fraction", 0.2))
+    val_count = int(np.ceil(len(file_names) * val_fraction))
+    val_count = max(1, min(val_count, max(1, len(file_names) - 1)))
+    rng = np.random.default_rng(seed)
+    perm = rng.permutation(len(file_names))
+    val_img_idx = sorted(perm[:val_count].tolist())
+    print(f"Random split with seed={seed}: val={len(val_img_idx)}, train={len(file_names)-len(val_img_idx)}")
+else:
+    val_names = split_cfg.get("val_img_names", [])
+    missing_names = [name for name in val_names if name not in file_names]
+    if len(missing_names) > 0:
+        raise ValueError(
+            "Some val_img_names are missing from loaded files: " + ", ".join(missing_names)
+        )
+    val_img_idx = [file_names.index(name) for name in val_names]
 
-# Get reproducible validation split from ImageLoader
-val_img_idx = IL.val_img_idx
+dilate = split_cfg["dilate"]
+plot = split_cfg["plot"]
 
 # instantiate data loaders
 reload(VeinGenerator)
@@ -158,60 +166,62 @@ if plot:
 
 #### Train vein growing CNN ####
 
-# Load config parameters values
-loss_type = config["loss"]["type"]
-layers = config["vein_grower"]["layers"]
-output_shape = config["vein_grower"]["output_shape"]
-output_activation = torch.nn.Softmax2d()
-learning_rate = config["optimizer"]["learning_rate"]
-dropout_rate = config["vein_grower"]["dropout_rate"]
-num_convs = config["vein_grower"]["num_convs"]
+# options
+loss = config["model"]["loss"]
+layers = config["model"]["layers"]
+output_shape = config["model"]["output_shape"]
+output_activation = getattr(torch.nn, config["model"]["output_activation"])()
+save_name = config["model"]["save_name"]
+dropout = config["model"]["dropout"]
 
-save_name = f"vein_grower_{loss_type}_{window_size}"
-
-# initialize model
+# initialize model and optimizer
 reload(BuildCNN)
 cnn = BuildCNN.CNN(
     window_size=window_size,
     layers=layers,
     output_shape=output_shape,
     output_activation=output_activation,
-    dropout_rate=dropout_rate,
-    num_convs=num_convs,
+    dropout_rate=dropout,
 ).to(device)
 
-opt = torch.optim.Adam(cnn.parameters(), lr=learning_rate)
+opt_cfg = config.get("optimizer", {})
+opt = torch.optim.Adam(
+    cnn.parameters(),
+    lr=float(opt_cfg.get("opt_lr", opt_cfg.get("lr", 5e-3))),
+)
 
-# Focal loss
-if loss_type == "fl":
-    gamma = config["loss"]["focal_loss"]["gamma"]
-    alpha = config["loss"]["focal_loss"]["alpha"]
 
-    def FocalLoss(pred, target):
-        pred = pred.clamp(min=1e-7, max=1.0 - 1e-7)
-        pt_1 = torch.where(target == 1, pred, torch.ones_like(pred))
-        pt_0 = torch.where(target == 0, pred, torch.zeros_like(pred))
-        out = -torch.mean(alpha * ((1.0 - pt_1) ** gamma) * torch.log(pt_1))
-        out = out - torch.mean((1.0 - alpha) * (pt_0**gamma) * torch.log(1.0 - pt_0))
-        return out
+# focal loss
+gamma = config["focal_loss"]["gamma"]
+alpha = config["focal_loss"]["alpha"]
 
+def FocalLoss(pred, target):
+    pred = pred.clamp(min=1e-7, max=1.0 - 1e-7)
+    pt_1 = torch.where(target == 1, pred, torch.ones_like(pred))
+    pt_0 = torch.where(target == 0, pred, torch.zeros_like(pred))
+    out = -torch.mean(alpha * ((1.0 - pt_1) ** gamma) * torch.log(pt_1))
+    out = out - torch.mean((1.0 - alpha) * (pt_0**gamma) * torch.log(1.0 - pt_0))
+    return out
+
+if loss == "fl":
     loss_fn = FocalLoss
-else:
+elif loss == "bce":
     loss_fn = torch.nn.BCELoss()
+else:
+    raise ValueError(f"Unsupported loss '{loss}'. Expected 'fl' or 'bce'.")
 
-# Learning rate scheduler (from yaml config)
-scheduler_config = config["scheduler"]
+# Reduce learning rate when validation loss plateaus
 scheduler_before_Plateau = {
-    "mode": scheduler_config["mode"],
-    "factor": scheduler_config["factor"],
-    "patience": scheduler_config["patience"],
-    "threshold": scheduler_config["threshold"],
+    "mode": config["scheduler"]["mode"],
+    "factor": float(config["scheduler"]["factor"]),
+    "patience": int(config["scheduler"]["patience"]),
+    "threshold": float(config["scheduler"]["threshold"]),
 }
 if (
     "verbose"
     in torch.optim.lr_scheduler.ReduceLROnPlateau.__init__.__code__.co_varnames
 ):
-    scheduler_before_Plateau["verbose"] = scheduler_config.get("verbose", True)
+    scheduler_before_Plateau["verbose"] = True
 
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, **scheduler_before_Plateau)
 
@@ -222,19 +232,17 @@ model = MW.ModelWrapper(
     optimizer=opt,
     loss=loss_fn,
     scheduler=scheduler,
-    save_name=f"{config['data']['weights_path']}{save_name}",
-    log_name=f"{config['data']['logs_path']}{save_name}.txt",
+    save_name=str(weights_run_dir / save_name),
+    log_name=str(logs_run_dir / f"{save_name}.csv"),
     device=device,
-    config_dict=config,
 )
 
 # model summary
 torchinfo.summary(cnn, input_size=(1, 3, window_size, window_size), device=device)
-model.use_amp = config["training"].get("use_amp", False)
+
 
 #### run model ####
 
-# Load config parameters values
 epochs = config["training"]["epochs"]
 batch_size = config["training"]["batch_size"]
 workers = config["training"]["workers"]
@@ -245,14 +253,14 @@ model.fit(
     validation_dataset=val_dataset,
     batch_size=batch_size,
     epochs=epochs,
-    verbose=config["training"]["verbose"],
+    verbose=2,
     early_stopping=early_stopping,
     workers=workers,
 )
 
 #### Plot ####
 
-rel_save_thresh = 0.0
+rel_save_thresh = config["training"]["rel_save_thresh"]
 
 # load errors
 total_train_losses, total_val_losses = [], []

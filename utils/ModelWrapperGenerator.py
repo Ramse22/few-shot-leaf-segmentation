@@ -1,9 +1,5 @@
-import os
 import torch, time, sys, pdb
 import numpy as np
-import datetime
-import yaml
-import shutil
 
 from utils.TimeRemaining import *
 from torch.utils.data import DataLoader
@@ -74,7 +70,6 @@ class ModelWrapper:
         save_best_val=True,
         save_opt=False,
         save_reg=False,
-        config_dict=None,
     ):
 
         # assign values
@@ -84,35 +79,8 @@ class ModelWrapper:
         self.regularizer = regularizer
         self.augmentation = augmentation
         self.scheduler = scheduler
-
-        # Generate timestamp for file naming
-        timestamp = datetime.datetime.now().strftime("%m%d%H%M%S%f")
-        self.config_dict = config_dict
-        self.timestamp = timestamp
-
-        # Create run-specific directory structure
-        run_dir = f"../results/run_{timestamp}"
-        weights_dir = f"{run_dir}/weights"
-        logs_dir = f"{run_dir}/logs"
-
-        os.makedirs(weights_dir, exist_ok=True)
-        os.makedirs(logs_dir, exist_ok=True)
-
-        # Set save_name and log_name with new structure
-        if save_name is not None:
-            # Extract just the model name (e.g., "vein_grower_fl_128")
-            model_name = save_name.split("/")[-1]  # Get last part if it's a path
-            self.save_name = f"{weights_dir}/{model_name}"
-        else:
-            self.save_name = None
-
-        if log_name is not None:
-            # Extract just the log name
-            log_filename = log_name.split("/")[-1].replace(".txt", "")
-            self.log_name = f"{logs_dir}/{log_filename}.txt"
-        else:
-            self.log_name = None
-
+        self.save_name = save_name
+        self.log_name = log_name
         self.save_best_train = save_best_train
         self.save_best_val = save_best_val
         self.save_opt = save_opt
@@ -121,9 +89,11 @@ class ModelWrapper:
         self.val_loss_list = []
         self.train = False
         self.val = False
-        self.use_amp = False
-        self.scaler = torch.cuda.amp.GradScaler()
         self.device = device if device is not None else torch.device("cpu")
+
+        # AMP scaler
+        self.use_amp = self.device.type == "cuda"
+        self.scaler = torch.cuda.amp.GradScaler(enabled=self.use_amp)
 
         # if no save name specified, don't save weights
         if self.save_name is None:
@@ -159,6 +129,7 @@ class ModelWrapper:
         collate_fn=None,
         synchronize=True,
     ):
+
         # initialize book keeping
         train_length = len(train_dataset)
         train_batches_per_epoch = int(train_length / batch_size)
@@ -169,92 +140,113 @@ class ModelWrapper:
         last_improved_train, last_improved_val = 0, 0
         best_train_loss = 1e12 if best_train_loss is None else best_train_loss
         best_val_loss = 1e12 if best_val_loss is None else best_val_loss
+
         # callback at beginning of training
         if callbacks is not None:
             for c in callbacks:
                 if c.on_train_begin:
                     c(self)
+
         # initialize log file
         if self.log_name is not None:
             with open(self.log_name, "w") as f:
-                f.writelines("Epoch,Train Loss,Val Loss,LR\n")
-
-        # Save config copy inside the run folder with same timestamp
-        if self.config_dict is not None and self.save_name is not None:
-            run_dir = f"../results/run_{self.timestamp}"
-            config_filename = f"{run_dir}/config.yaml"
-            with open(config_filename, "w") as f:
-                yaml.dump(self.config_dict, f)
+                f.writelines("Epoch,Train Loss,Val Loss,Learning Rate\n")
 
         # loop over epochs
         for epoch in range(initial_epoch, initial_epoch + epochs):
             #
             # training step
             #
+
             self.train = True
             self.val = False
+
             # callback at beginning of epoch
             if callbacks is not None:
                 for c in callbacks:
                     if c.on_epoch_begin:
                         c(self)
+
             self.model.train()
             train_losses = 0
             epoch_start_time = time.time()
-            # compile train data loader — prefetch_factor requires workers > 0
-            loader_kwargs = dict(
-                batch_size=batch_size,
-                shuffle=shuffle,
-                num_workers=workers,
-                pin_memory=(self.device.type == "cuda"),
-                persistent_workers=(workers > 0),
-            )
-            if workers > 0:
-                loader_kwargs["prefetch_factor"] = 2
-            if collate_fn is not None:
-                loader_kwargs["collate_fn"] = collate_fn
-            train_loader = DataLoader(train_dataset, **loader_kwargs)
+
+            # compile train data loader
+            if collate_fn is None:
+                train_loader = DataLoader(
+                    train_dataset,
+                    batch_size=batch_size,
+                    shuffle=shuffle,
+                    num_workers=workers,
+                    pin_memory=(self.device.type == "cuda"),
+                    persistent_workers=(workers > 0),
+                    prefetch_factor=2,
+                )
+            else:
+                train_loader = DataLoader(
+                    train_dataset,
+                    batch_size=batch_size,
+                    shuffle=shuffle,
+                    num_workers=workers,
+                    collate_fn=collate_fn,
+                    pin_memory=(self.device.type == "cuda"),
+                    persistent_workers=(workers > 0),
+                    prefetch_factor=2,
+                )
+
             # loop over training batches
             idx = 0
+            # mem_every = 50
             for x_true, y_true in train_loader:
                 # callback at beginning of batch
                 if callbacks is not None:
                     for c in callbacks:
                         if c.on_batch_begin:
                             c(self)
+
                 # stop loop if steps_per_epoch exceeded
                 if steps_per_epoch is not None:
                     if idx >= steps_per_epoch:
                         break
                 batch_start_time = time.time()
+
                 # assign to device
                 x_true = x_true.to(self.device).contiguous()
                 y_true = y_true.to(self.device).contiguous()
+
                 # reset gradients
                 self.optimizer.zero_grad()
+
                 # forward + loss with AMP
-                with autocast(device_type="cuda", enabled=self.use_amp):
+                with autocast(device_type="cuda", enabled=(self.device.type == "cuda")):
                     y_pred = self.model(x_true)
+
                     # compute loss
                     loss = self.loss(y_pred, y_true)
+
                     if self.regularizer is not None:
                         loss = loss + self.regularizer(
                             self.model, x_true, y_true, y_pred
                         )
+
                 # backward
-                if self.use_amp:
-                    self.scaler.scale(loss).backward()
-                    self.scaler.step(self.optimizer)
-                    self.scaler.update()
-                else:
-                    loss.backward()
-                    self.optimizer.step()
+                self.scaler.scale(loss).backward()
+
+                # update weights
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+
                 # store loss for logging
-                self.train_loss = loss.cpu().detach().numpy()
+                self.train_loss = loss
+
+                # update book keeping for this batch
+                self.train_loss = self.train_loss.cpu().detach().numpy()
                 train_losses += self.train_loss
+
                 # wait for GPU computations to finish
                 if self.device != torch.device("cpu") and synchronize:
                     torch.cuda.synchronize()
+
                 # print batch statistics
                 if verbose == 2:
                     elapsed, remaining, ms_per_iter = TimeRemaining(
@@ -281,25 +273,32 @@ class ModelWrapper:
                         + "          "
                     )
                     sys.stdout.flush()
+
                 # callback at ending of batch
                 if callbacks is not None:
                     for c in callbacks:
                         if c.on_batch_end:
                             c(self)
+
                 idx += 1
+
             # update book keeping for this epoch
             self.train_loss_list.append(train_losses / train_batches_per_epoch)
+
             # if train error improved
             rel_diff = best_train_loss - self.train_loss_list[-1]
             rel_diff /= best_train_loss
             if rel_diff > rel_save_thresh:
                 # update best training loss
                 best_train_loss = self.train_loss_list[-1]
+
                 # optionally save model and optimizer
                 if self.save_best_train:
                     self.save(self.save_name + "_best_train")
+
                 # update early stopper
                 last_improved_train = epoch
+
             # print readout
             if verbose == 2:
                 sys.stdout.write(
@@ -320,114 +319,143 @@ class ModelWrapper:
                     + "       "
                 )
                 sys.stdout.flush()
+
             # optional early stopping
             if early_stopping is not None and self.save_best_train:
                 if epoch - last_improved_train >= early_stopping:
                     break
+
             #
             # validation step
             #
-            improved = ""  # marker for best-val indicator in verbose output
+
             if validation_dataset is not None:
                 self.train = False
                 self.val = True
+
                 self.model.eval()
+
                 # zero-initialize losses
                 self.val_loss = 0
                 self.val_reg_loss = 0
+
                 # compile validation data loader
-                val_loader_kwargs = dict(
-                    batch_size=batch_size,
-                    shuffle=True,
-                    num_workers=workers,
-                )
-                if collate_fn is not None:
-                    val_loader_kwargs["collate_fn"] = collate_fn
-                val_loader = DataLoader(validation_dataset, **val_loader_kwargs)
+                if collate_fn is None:
+                    val_loader = DataLoader(
+                        validation_dataset,
+                        batch_size=batch_size,
+                        shuffle=True,
+                        num_workers=workers,
+                    )
+                else:
+                    val_loader = DataLoader(
+                        validation_dataset,
+                        batch_size=batch_size,
+                        shuffle=True,
+                        num_workers=workers,
+                        collate_fn=collate_fn,
+                    )
+
                 # prevent cuda memory from blowing up on validation
                 with torch.no_grad():
                     # loop over validation batches
                     idx = 0
+                    # mem_every = 50
                     for x_true, y_true in val_loader:
+                        # do_mem = (self.device.type == "cuda" and (idx % mem_every == 0))
+
                         # callback at beginning of batch
                         if callbacks is not None:
                             for c in callbacks:
                                 if c.on_batch_begin:
                                     c(self)
+
                         # stop loop if validation_steps exceeded
                         if validation_steps is not None:
                             if idx >= validation_steps:
                                 break
+
                         # assign to device
                         x_true = x_true.to(self.device).contiguous()
                         y_true = y_true.to(self.device).contiguous()
-                        # run the model with AMP
-                        with autocast(device_type="cuda", enabled=self.use_amp):
+
+                        # run the model
+                        # WITH AUTOCAST
+                        with autocast(
+                            device_type="cuda", enabled=(self.device.type == "cuda")
+                        ):
                             y_pred = self.model(x_true)
+
                             # compute loss
                             if isinstance(self.loss, list):
                                 for loss_fun in self.loss:
                                     self.val_loss += loss_fun(y_pred, y_true)
                             else:
                                 self.val_loss += self.loss(y_pred, y_true)
+
                             # optionally include regularization in val loss
                             if include_val_reg and self.regularizer is not None:
                                 self.val_reg_loss += self.regularizer(
                                     self.model, x_true, y_true, y_pred
                                 )
+
                         # wait for GPU computations to finish
                         if self.device != torch.device("cpu") and synchronize:
                             torch.cuda.synchronize()
+
                         # callback at ending of batch
                         if callbacks is not None:
                             for c in callbacks:
                                 if c.on_batch_end:
                                     c(self)
+
                         idx += 1
+
                 # update book keeping for this epoch
                 loss = self.val_loss / (idx + 1) + self.val_reg_loss / (idx + 1)
                 self.val_loss_list.append(loss.cpu().detach().numpy())
+
                 # if validation error improved
                 rel_diff = best_val_loss - self.val_loss_list[-1]
                 rel_diff /= best_val_loss
                 if rel_diff > rel_save_thresh:
                     # update best validation loss
                     best_val_loss = self.val_loss_list[-1]
+
                     # optionally save model and optimizer
                     if self.save_best_val:
                         self.save(self.save_name + "_best_val")
+
                     # update early stopper
                     last_improved_val = epoch
+
                     improved = " *"
+
                 else:
                     improved = ""
-            # step lr scheduler once per epoch using the most recent validation
-            # (or training) loss as the monitored metric
-            if self.scheduler is not None:
-                if isinstance(
-                    self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
-                ):
-                    metric = (
-                        self.val_loss_list[-1]
-                        if self.val_loss_list
-                        else self.train_loss_list[-1]
-                    )
-                    self.scheduler.step(metric)
-                else:
-                    self.scheduler.step()
+
             # log progress
             if self.log_name is not None:
                 current_lr = self.optimizer.param_groups[0]["lr"]
-                val_loss_log = self.val_loss_list[-1] if self.val_loss_list else ""
                 with open(self.log_name, "a") as f:
                     f.writelines(
                         "{0},{1},{2},{3}\n".format(
                             epoch + 1,
                             self.train_loss_list[-1],
-                            val_loss_log,
+                            self.val_loss_list[-1],
                             current_lr,
                         )
                     )
+
+            # Scheduler
+            if self.scheduler is not None:
+                if isinstance(
+                    self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
+                ):
+                    self.scheduler.step(self.val_loss_list[-1])  # Passer la val loss
+                else:
+                    self.scheduler.step()
+
             # update user
             if verbose == 1:
                 # times
@@ -438,51 +466,49 @@ class ModelWrapper:
                     previous_time=epoch_start_time,
                     ops_per_iter=batch_size,
                 )
+
                 # prints
                 p = "\rEpoch {0}".format(epoch + 1)
                 p += " | Train loss = {0:1.4e}".format(self.train_loss_list[-1])
                 if validation_dataset is not None:
                     p += " | Val loss = {0:1.4e}".format(self.val_loss_list[-1])
-                p += " | LR = {0:1.2e}".format(self.optimizer.param_groups[0]["lr"])
                 p += " | Remaining = " + remaining + "           "
                 sys.stdout.write(p)
+
             # final print readout for verbose 2
             if verbose == 2:
-                val_str = (
-                    " | Val loss = {0:1.4e}".format(self.val_loss_list[-1])
-                    if self.val_loss_list
-                    else ""
-                )
                 sys.stdout.write(
                     (
                         "\r\x1b[KEpoch {0} {1}/{2}"
                         + " | Train loss = {3:1.4e}"
-                        + "{4}"
-                        + " | LR = {5:1.2e}"
+                        + " | Val loss = {4:1.4e}"
                     ).format(
                         str(epoch + 1).rjust(len(str(epochs))),
                         train_batches_per_epoch,
                         train_batches_per_epoch,
                         self.train_loss_list[-1],
-                        val_str,
-                        self.optimizer.param_groups[0]["lr"],
+                        self.val_loss_list[-1],
                     )
                 )
                 print(improved + "                 ")
+
             # optional early stopping
             if early_stopping is not None and self.save_best_val:
                 if epoch - last_improved_val >= early_stopping:
                     break
+
             # optional learning rate annealing
             if lr_dec_epoch is not None:
                 if np.mod(epoch, lr_dec_epoch) == 0 and epoch != 0:
                     for param_group in self.optimizer.param_groups:
                         param_group["lr"] *= lr_dec_prop
+
             # callback at ending of epoch
             if callbacks is not None:
                 for c in callbacks:
                     if c.on_epoch_end:
                         c(self)
+
         # final print readout for verbose 1
         if verbose == 1:
             # times
@@ -493,6 +519,7 @@ class ModelWrapper:
                 previous_time=epoch_start_time,
                 ops_per_iter=batch_size,
             )
+
             # prints
             if self.save_best_val:
                 idx = np.argmin(self.val_loss_list)
@@ -507,6 +534,7 @@ class ModelWrapper:
             p += " | Elapsed = " + elapsed + "           "
             sys.stdout.write(p)
             print()
+
         # final print readout for verbose 2
         if verbose == 2:
             # times
@@ -517,6 +545,7 @@ class ModelWrapper:
                 previous_time=epoch_start_time,
                 ops_per_iter=batch_size,
             )
+
             # prints
             if self.save_best_val:
                 idx = np.argmin(self.val_loss_list)
@@ -530,6 +559,7 @@ class ModelWrapper:
             p += " | Elapsed = " + elapsed + "           "
             sys.stdout.write(p)
             print()
+
         # callback at ending of training
         if callbacks is not None:
             for c in callbacks:
@@ -540,19 +570,24 @@ class ModelWrapper:
         """
         Runs the model on a given set of inputs.
         """
+
         # run model in eval mode (for batchnorm, dropout, etc.)
         self.model.eval()
+
         return self.model(inputs)
 
     def save(self, save_name):
         """
         Saves model weights and optionally optimizer weights.
         """
+
         # save model weights
         torch.save(self.model.state_dict(), save_name + "_model.save")
+
         # save optimizer weights
         if self.save_opt and self.optimizer is not None:
             torch.save(self.optimizer.state_dict(), save_name + "_opt.save")
+
         # save regularizer weights
         if self.save_reg and self.regularizer is not None:
             torch.save(self.regularizer.state_dict(), save_name + "_reg.save")
@@ -561,14 +596,17 @@ class ModelWrapper:
         """
         Loads model weights and optionally optimizer weights.
         """
+
         # load model weights
         weights = torch.load(model_weights, map_location=device)
         self.model.load_state_dict(weights)
         self.model.eval()
+
         # load optimizer weights
         if opt_weights is not None:
             params = torch.load(opt_weights, map_location=device)
             self.optimizer.load_state_dict(params)
+
         # load regularizer weights
         if reg_weights is not None:
             params = torch.load(reg_weights, map_location=device)
@@ -578,17 +616,20 @@ class ModelWrapper:
         """
         Loads model weights that yielded best training error.
         """
+
         # load model weights
         name = self.save_name + "_best_train_model.save"
         weights = torch.load(name, map_location=device)
         self.model.load_state_dict(weights)
         self.model.eval()
+
         # load optimizer weights
         if self.save_opt and self.optimizer is not None:
             name = self.save_name + "_best_train_opt.save"
             params = torch.load(name, map_location=device)
             self.optimizer.load_state_dict(params)
-        # load regularizer weights
+
+        # load optimizer weights
         if self.save_reg and self.regularizer is not None:
             name = self.save_name + "_best_train_reg.save"
             params = torch.load(name, map_location=device)
@@ -598,16 +639,19 @@ class ModelWrapper:
         """
         Loads model weights that yielded best validation error.
         """
+
         # load model weights
         name = self.save_name + "_best_val_model.save"
         weights = torch.load(name, map_location=device)
         self.model.load_state_dict(weights)
         self.model.eval()
+
         # load optimizer weights
         if self.save_opt and self.optimizer is not None:
             name = self.save_name + "_best_val_opt.save"
             params = torch.load(name, map_location=device)
             self.optimizer.load_state_dict(params)
+
         # load regularizer weights
         if self.save_reg and self.regularizer is not None:
             name = self.save_name + "_best_val_reg.save"
