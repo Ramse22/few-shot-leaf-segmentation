@@ -63,7 +63,9 @@ roi_path = config["data"]["roi_path"]
 # Determine prediction/probability output locations.
 # If the config's pred/prob paths point to the generic results root (e.g. "../results/"),
 # save preds/probs inside the same run folder as the weights file so outputs live with weights/logs.
-weights_dir = os.path.dirname(weights_path) if os.path.isfile(weights_path) else weights_path
+weights_dir = (
+    os.path.dirname(weights_path) if os.path.isfile(weights_path) else weights_path
+)
 pred_root_cfg = config["data"].get("pred_path", "../results/")
 prob_root_cfg = config["data"].get("prob_path", "../results/")
 if os.path.normpath(pred_root_cfg).endswith("results"):
@@ -124,7 +126,7 @@ for image_idx, image_name in enumerate(image_names):
 
         if roi_file:
             roi_array = np.array(Image.open(roi_file), dtype=np.float32) / 255
-            
+
             # Handle both 2D (grayscale) and 3D (RGB) masks
             if roi_array.ndim == 3:  # RGB mask
                 roi = roi_array[:, :, 0] > 0.5

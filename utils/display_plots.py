@@ -40,7 +40,7 @@ for pred_idx, pred_file in enumerate(pred_files[:num_examples]):
     # Load image and mask
     if image_file:
         image = np.array(Image.open(image_file), dtype=float) / 255
-        
+
         # Handle both 2D (grayscale) and 3D (RGB) masks
         mask_array = np.array(Image.open(pred_file), dtype=float)
         if mask_array.ndim == 3:  # RGB mask
@@ -73,10 +73,10 @@ vein_files = sorted(glob.glob(vein_pred_path + "*.png"))
 print(f"\nFound {len(vein_files)} vein predictions")
 
 # Visualize with overlay
-num_examples = len(vein_files) 
+num_examples = len(vein_files)
 fig_size = 12
 
-for vein_idx, vein_file in enumerate(vein_files): 
+for vein_idx, vein_file in enumerate(vein_files):
     base_name = os.path.splitext(os.path.basename(vein_file))[0]
 
     # Try different image extensions
@@ -89,7 +89,7 @@ for vein_idx, vein_file in enumerate(vein_files):
 
     if image_file:
         image = np.array(Image.open(image_file), dtype=np.float32) / 255
-        
+
         # Handle both 2D (grayscale) and 3D (RGB) vein masks
         vein_array = np.array(Image.open(vein_file), dtype=np.float32)
         if vein_array.ndim == 3:  # RGB mask

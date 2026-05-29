@@ -84,10 +84,16 @@ def create_test_patches():
     leaf_pred_path = "../data/leaf_preds/C_1_4_19_bot.png"
     leaf_pred_sam3_path = "../data_marion/leaf_preds_jlag_sam3/C_1_4_19_bot.png"
 
-    leaf_mask = np.array(Image.open(leaf_mask_path)) if os.path.exists(leaf_mask_path) else None
-    leaf_pred = np.array(Image.open(leaf_pred_path)) if os.path.exists(leaf_pred_path) else None
+    leaf_mask = (
+        np.array(Image.open(leaf_mask_path)) if os.path.exists(leaf_mask_path) else None
+    )
+    leaf_pred = (
+        np.array(Image.open(leaf_pred_path)) if os.path.exists(leaf_pred_path) else None
+    )
     leaf_pred_sam3 = (
-        np.array(Image.open(leaf_pred_sam3_path)) if os.path.exists(leaf_pred_sam3_path) else None
+        np.array(Image.open(leaf_pred_sam3_path))
+        if os.path.exists(leaf_pred_sam3_path)
+        else None
     )
 
     print(f"Image shape:          {image.shape}")
@@ -112,7 +118,9 @@ def create_test_patches():
     if leaf_pred is not None:
         assert image.shape[:2] == leaf_pred.shape[:2], "Image/leaf pred size mismatch"
     if leaf_pred_sam3 is not None:
-        assert image.shape[:2] == leaf_pred_sam3.shape[:2], "Image/SAM3 leaf pred size mismatch"
+        assert image.shape[:2] == leaf_pred_sam3.shape[:2], (
+            "Image/SAM3 leaf pred size mismatch"
+        )
 
     window_size = 128
 
@@ -145,38 +153,51 @@ def create_test_patches():
         vein_patches, window_size=window_size, padding_factor=1.5
     )
     leaf_patches_padded = (
-        add_padding_to_patches(leaf_patches, window_size=window_size, padding_factor=1.5)
+        add_padding_to_patches(
+            leaf_patches, window_size=window_size, padding_factor=1.5
+        )
         if leaf_patches is not None
         else None
     )
     leaf_pred_patches_padded = (
-        add_padding_to_patches(leaf_pred_patches, window_size=window_size, padding_factor=1.5)
+        add_padding_to_patches(
+            leaf_pred_patches, window_size=window_size, padding_factor=1.5
+        )
         if leaf_pred_patches is not None
         else None
     )
     leaf_sam3_patches_padded = (
-        add_padding_to_patches(leaf_sam3_patches, window_size=window_size, padding_factor=1.5)
+        add_padding_to_patches(
+            leaf_sam3_patches, window_size=window_size, padding_factor=1.5
+        )
         if leaf_sam3_patches is not None
         else None
     )
 
     # Save all patches
     print(f"\nSaving padded patches to {output_dir}...")
-    for i, (img_patch, vein_patch) in enumerate(zip(image_patches_padded, vein_patches_padded)):
+    for i, (img_patch, vein_patch) in enumerate(
+        zip(image_patches_padded, vein_patches_padded)
+    ):
         patch_name = f"patch_{i:02d}"
 
         Image.fromarray(img_patch).save(f"{output_dir}/image/{patch_name}.jpeg")
         Image.fromarray(vein_patch).save(f"{output_dir}/vein_mask/{patch_name}.png")
         if leaf_patches_padded is not None:
-            Image.fromarray(leaf_patches_padded[i]).save(f"{output_dir}/leaf_mask/{patch_name}.png")
+            Image.fromarray(leaf_patches_padded[i]).save(
+                f"{output_dir}/leaf_mask/{patch_name}.png"
+            )
         if leaf_pred_patches_padded is not None:
-            Image.fromarray(leaf_pred_patches_padded[i]).save(f"{output_dir}/leaf_pred/{patch_name}.png")
+            Image.fromarray(leaf_pred_patches_padded[i]).save(
+                f"{output_dir}/leaf_pred/{patch_name}.png"
+            )
         if leaf_sam3_patches_padded is not None:
             Image.fromarray(leaf_sam3_patches_padded[i], mode="L").save(
                 f"{output_dir}/leaf_pred_sam3/{patch_name}.png"
             )
 
         print(f"  Saved patch {i + 1}/12 - Shape after padding: {img_patch.shape}")
+
 
 if __name__ == "__main__":
     create_test_patches()

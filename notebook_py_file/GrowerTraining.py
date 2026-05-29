@@ -109,13 +109,16 @@ if random_split_cfg is not None:
     rng = np.random.default_rng(seed)
     perm = rng.permutation(len(file_names))
     val_img_idx = sorted(perm[:val_count].tolist())
-    print(f"Random split with seed={seed}: val={len(val_img_idx)}, train={len(file_names)-len(val_img_idx)}")
+    print(
+        f"Random split with seed={seed}: val={len(val_img_idx)}, train={len(file_names) - len(val_img_idx)}"
+    )
 else:
     val_names = split_cfg.get("val_img_names", [])
     missing_names = [name for name in val_names if name not in file_names]
     if len(missing_names) > 0:
         raise ValueError(
-            "Some val_img_names are missing from loaded files: " + ", ".join(missing_names)
+            "Some val_img_names are missing from loaded files: "
+            + ", ".join(missing_names)
         )
     val_img_idx = [file_names.index(name) for name in val_names]
 
@@ -195,6 +198,7 @@ opt = torch.optim.Adam(
 gamma = config["focal_loss"]["gamma"]
 alpha = config["focal_loss"]["alpha"]
 
+
 def FocalLoss(pred, target):
     pred = pred.clamp(min=1e-7, max=1.0 - 1e-7)
     pt_1 = torch.where(target == 1, pred, torch.ones_like(pred))
@@ -202,6 +206,7 @@ def FocalLoss(pred, target):
     out = -torch.mean(alpha * ((1.0 - pt_1) ** gamma) * torch.log(pt_1))
     out = out - torch.mean((1.0 - alpha) * (pt_0**gamma) * torch.log(1.0 - pt_0))
     return out
+
 
 if loss == "fl":
     loss_fn = FocalLoss
