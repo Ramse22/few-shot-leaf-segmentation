@@ -3,14 +3,10 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-
 results_dir = BASE_DIR.parent / "results"
-csv_files = sorted(results_dir.glob("**/*.csv"), key=lambda path: path.stat().st_mtime)
-if not csv_files:
-    raise FileNotFoundError(f"No CSV logs found under {results_dir}")
 
-# Use the newest run log by default
-log_file = csv_files[-1]
+run_name = "20260529-161930-695637"  
+log_file = results_dir / run_name / "vein_grower.csv"
 print(f"Using log file: {log_file}")
 
 rel_save_thresh = 0.0

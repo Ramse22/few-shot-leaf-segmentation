@@ -46,7 +46,7 @@ scheduler:
 ########### Training parameters ###########
 
 training:
-  epochs: 10
+  epochs: 50
   batch_size: 512
   workers: 32
   early_stopping: 10

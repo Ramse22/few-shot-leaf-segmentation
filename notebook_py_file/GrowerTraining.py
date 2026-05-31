@@ -29,7 +29,8 @@ if "device" not in locals():
 
 #### Load config ####
 
-with open("../configs/config_test.yaml", "r") as f:
+config_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("../configs/config_test.yaml")
+with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
 run_name = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
@@ -39,7 +40,7 @@ weights_run_dir = weights_root / run_name
 logs_run_dir = logs_root / run_name
 weights_run_dir.mkdir(parents=True, exist_ok=True)
 logs_run_dir.mkdir(parents=True, exist_ok=True)
-shutil.copy2(Path("../configs/config_test.yaml"), weights_run_dir / "config_test.yaml")
+shutil.copy2(config_path, weights_run_dir / config_path.name)
 
 #### Load images ####
 
