@@ -6,7 +6,7 @@ data:
 #data paths
   image_path: "../data/images/"
   mask_path: "../data/vein_masks/"
-  roi_path: "../data/leaf_preds/"
+  roi_path: "../data_marion/leaf_preds/"
 
 #results paths
   weights_path: "../results/"
