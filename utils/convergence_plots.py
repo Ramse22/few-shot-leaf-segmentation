@@ -5,7 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 results_dir = BASE_DIR.parent / "results"
 
-run_name = "20260529-161930-695637"  
+run_name = "20260601-142854-749134"  
 log_file = results_dir / run_name / "vein_grower.csv"
 print(f"Using log file: {log_file}")
 

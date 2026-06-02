@@ -125,6 +125,7 @@ else:
 
 dilate = split_cfg["dilate"]
 plot = split_cfg["plot"]
+augment = split_cfg.get("augment", True)
 
 # instantiate data loaders
 reload(VeinGenerator)
@@ -133,7 +134,7 @@ train_dataset = VeinGenerator.VeinGenerator(
     masks=[masks[i] for i in range(len(masks)) if i not in val_img_idx],
     rois=[rois[i] for i in range(len(rois)) if i not in val_img_idx],
     window_size=window_size,
-    augment=True,
+    augment=augment,
     dilate=dilate,
 )
 val_dataset = VeinGenerator.VeinGenerator(
