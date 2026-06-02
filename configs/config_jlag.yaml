@@ -61,6 +61,7 @@ data_split:
     val_fraction: 0.2
   dilate: 50
   plot:   false
+  augment: true
 
 ##### optimizer ########
 optimizer:

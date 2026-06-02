@@ -29,7 +29,7 @@ if "device" not in locals():
 
 #### Load config ####
 
-config_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("../configs/config_test.yaml")
+config_path = Path(sys.argv[1]) # when running from command line. Set string to config name to run locally.
 with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
