@@ -1,0 +1,50 @@
+# Diagnostic: augmentation ON, dropout OFF.
+# If val < train, augmentation is the cause.
+
+data:
+  image_path: "../data/images/"
+  mask_path: "../data/vein_masks/"
+  roi_path: "../data_marion/leaf_preds_jlag_sam3/"
+  weights_path: "../results/"
+  logs_path: "../results/"
+  image_extension: ".jpeg"
+  mask_extension: ".png"
+  roi_extension: ".png"
+  window_size: 64
+
+model:
+  loss:              "fl"
+  layers:            [3, 32, 32, 32, 32, 64, 128]
+  output_shape:      [2, 3, 3]
+  output_activation: "Softmax2d"
+  save_name:         "vein_grower"
+  dropout:           0.0            # dropout OFF
+
+focal_loss:
+  gamma: 2.0
+  alpha: 0.25
+
+scheduler:
+  patience: 2
+  factor: 0.5
+  mode: "min"
+  threshold: 1e-4
+
+training:
+  epochs: 50
+  batch_size: 1024
+  workers: 32
+  early_stopping: 10
+  rel_save_thresh: 0.0
+
+data_split:
+  val_img_names: []
+  random_split:
+    seed: 42
+    val_fraction: 0.2
+  dilate: 50
+  plot:   false
+  augment: true                     # augmentation ON
+
+optimizer:
+  opt_lr: 5e-3
