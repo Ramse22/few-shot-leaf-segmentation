@@ -48,7 +48,7 @@ scheduler:
 training:
   epochs: 50
   batch_size: 1024
-  workers: 32
+  workers: 8
   early_stopping: 10
   rel_save_thresh: 0.0
 
@@ -62,6 +62,7 @@ data_split:
   dilate: 50
   plot:   false
   augmentation: true
+  n_samples: 100000   # max foreground pixels per image (null = no cap)
 
 ##### optimizer ########
 optimizer:

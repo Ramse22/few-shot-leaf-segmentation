@@ -113,66 +113,33 @@ class VeinGrower:
         # reorder image channels
         image = self.channels_first(image)
 
-        # initialize book keeping
+        # initialize prediction accumulator
         mask = np.zeros((2, image.shape[-2], image.shape[-1]))
-        sample = np.zeros((image.shape[-2], image.shape[-1]))
-        unconsidered = np.zeros((image.shape[-2], image.shape[-1]))
-        unconsidered[w:-w, w:-w] = 1  # don't consider padding
 
-        # initialize sample
-        if start_locs is None:
-            if roi is None:
-                i = np.random.choice(image.shape[1], n_locs)
-                j = np.random.choice(image.shape[2], n_locs)
-                start_locs = np.concatenate([i[:, None], j[:, None]], axis=1)
-            else:
-                start_locs = np.argwhere(roi == 1.0)
-                p = np.random.permutation(len(start_locs))
-                start_locs = start_locs[p[:n_locs]]
-        for i in range(len(start_locs)):
-            sample[start_locs[i, 0], start_locs[i, 1]] = 1
+        # all non-padding pixel locations — single pass replaces iterative growing
+        valid = np.zeros((image.shape[-2], image.shape[-1]))
+        valid[w:-w, w:-w] = 1
+        all_locs = np.argwhere(valid == 1)
 
-        # initialize sample locations
-        locs = np.where(unconsidered * sample == 1)
+        # single inference pass over all pixels
+        tile_generator = TileGenerator(image, all_locs, w)
+        tile_batch_loader = DataLoader(
+            tile_generator, batch_size=batch_size, shuffle=False, num_workers=0
+        )
 
-        # predict until no more sample locations
-        count = 0
-        while len(locs) != 0:
-            # instantiate data generator for current locations
-            tile_generator = TileGenerator(image, locs, w)
-            tile_batch_loader = DataLoader(
-                tile_generator, batch_size=batch_size, shuffle=False, num_workers=0
-            )
+        n_batches = len(tile_batch_loader)
+        for b_idx, (idx_batch, tile_batch) in enumerate(tile_batch_loader):
+            idx_batch = idx_batch.detach().cpu().numpy()
+            tile_batch = tile_batch.to(self.device)
+            with torch.no_grad():
+                pred_batch = self.model(tile_batch).detach().cpu().numpy()
+            for idx, pred in zip(idx_batch, pred_batch):
+                i, j = idx[0], idx[1]
+                mask[:, i - 1 : i + 2, j - 1 : j + 2] += pred
 
-            # loop over batches indices/tiles
-            for idx_batch, tile_batch in tile_batch_loader:
-                # make model prediction
-                idx_batch = idx_batch.detach().cpu().numpy()
-                tile_batch = tile_batch.to(self.device)
-                with torch.no_grad():
-                    pred_batch = self.model(tile_batch).detach().cpu().numpy()
-
-                # update mask, sample, and unconsidered
-                for idx, pred in zip(idx_batch, pred_batch):
-                    i, j = idx[0], idx[1]
-                    mask[:, i - 1 : i + 2, j - 1 : j + 2] += pred
-                    unconsidered[i, j] = 0
-                    f = mask[0, i - 1 : i + 2, j - 1 : j + 2]  # foreground
-                    b = mask[1, i - 1 : i + 2, j - 1 : j + 2]  # background
-                    sample[i - 1 : i + 2, j - 1 : j + 2] = 1.0 * ((f - b) > -0.2)
-
-            # update sample and locations
-            locs = np.argwhere(unconsidered * sample == 1)
-
-            # update user
             if self.verbose:
-                p = "\rIteration {0}".format(count)
-                p += " | Samples = {0}".format(len(locs))
-                p += "           "
+                p = "\rBatch {0}/{1}".format(b_idx + 1, n_batches)
                 sys.stdout.write(p)
-
-            # update counter
-            count += 1
 
         if self.verbose:
             print()

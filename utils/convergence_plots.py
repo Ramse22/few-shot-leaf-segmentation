@@ -5,7 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 results_dir = BASE_DIR.parent / "results"
 
-run_name = "20260602-132003-329517"  
+run_name = "20260601-112025-063664"  
 log_file = results_dir / run_name / "vein_grower.csv"
 print(f"Using log file: {log_file}")
 
@@ -46,7 +46,7 @@ print(f"Best epoch: {best_epoch}")
 print(f"Best validation loss: {best_loss:.6f}")
 print(f"Learning rate at best epoch: {learning_rates[best_epoch - 1]:.6e}")
 
-# ===== FIGURE 1: Convergence + Improvements + Learning Rate =====
+# ===== FIGURE 1: Convergence + Learning Rate =====
 fig = plt.figure(figsize=(18, 5))
 
 ax = fig.add_subplot(1, 3, 1)
@@ -57,15 +57,6 @@ plt.legend([r"Train error", r"Val error", "Best model"])
 plt.xlabel(r"Epochs")
 plt.ylabel(r"Total Loss")
 plt.title(r"Convergence")
-plt.grid()
-
-ax = fig.add_subplot(1, 3, 2)
-plt.plot(train_idx, train_loss, "b.-")
-plt.plot(val_idx, val_loss, "r.-")
-plt.legend([r"Train error", r"Val error"])
-plt.xlabel("Epochs")
-plt.ylabel(r"Total Loss")
-plt.title(r"Improvements")
 plt.grid()
 
 ax = fig.add_subplot(1, 3, 3)

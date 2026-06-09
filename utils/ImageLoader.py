@@ -62,7 +62,7 @@ class ImageLoader:
     def load_image(self, path, pad=None):
 
         # load image as float array
-        image = np.array(Image.open(path), dtype=float)
+        image = np.array(Image.open(path), dtype=np.float32)
 
         # pre-process image
         if image.shape[2] > 3:
@@ -81,7 +81,7 @@ class ImageLoader:
             )
 
         # shape [H, W, 3]
-        return image.astype(float)
+        return image
 
     def load_mask(self, path, pad=None):
 

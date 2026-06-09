@@ -29,7 +29,7 @@ if "device" not in locals():
 
 #### Load config ####
 
-config_path = Path(sys.argv[1]) # when running from command line. Set string to config name to run locally.
+config_path = "../configs/config.yaml" #Path(sys.argv[1]) # when running from command line. Set string to config name to run locally.
 with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
@@ -40,7 +40,7 @@ weights_run_dir = weights_root / run_name
 logs_run_dir = logs_root / run_name
 weights_run_dir.mkdir(parents=True, exist_ok=True)
 logs_run_dir.mkdir(parents=True, exist_ok=True)
-shutil.copy2(config_path, weights_run_dir / config_path.name)
+shutil.copy2(config_path, weights_run_dir / Path(config_path).name)
 
 #### Load images ####
 
@@ -126,6 +126,7 @@ else:
 dilate = split_cfg["dilate"]
 plot = split_cfg["plot"]
 augment = split_cfg.get("augment", True)
+n_samples = split_cfg.get("n_samples", None)
 
 # instantiate data loaders
 reload(VeinGenerator)
@@ -136,6 +137,7 @@ train_dataset = VeinGenerator.VeinGenerator(
     window_size=window_size,
     augment=augment,
     dilate=dilate,
+    n_samples=n_samples,
 )
 val_dataset = VeinGenerator.VeinGenerator(
     images=[images[i] for i in range(len(images)) if i in val_img_idx],
@@ -144,6 +146,7 @@ val_dataset = VeinGenerator.VeinGenerator(
     window_size=window_size,
     augment=False,
     dilate=dilate,
+    n_samples=n_samples,
 )
 print("Train: {0:,}, Val: {1:,}".format(len(train_dataset), len(val_dataset)))
 print()
