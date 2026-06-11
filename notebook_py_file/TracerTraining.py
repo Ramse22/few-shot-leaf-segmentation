@@ -17,10 +17,6 @@ import models.BuildCNN as BuildCNN
 if 'device' not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
 
-# %% [markdown]
-# # Load images
-
-# %%
 # options
 image_path = '../data/images/'
 mask_path = '../data/leaf_masks/'
