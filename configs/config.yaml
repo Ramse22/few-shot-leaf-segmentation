@@ -62,7 +62,6 @@ data_split:
   dilate: 50
   plot:   false
   augmentation: true
-  n_samples: 100000   # max foreground pixels per image (null = no cap)
 
 ##### optimizer ########
 optimizer:

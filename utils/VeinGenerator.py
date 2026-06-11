@@ -27,7 +27,7 @@ class VeinGenerator(Dataset):
     """
 
     def __init__(
-        self, images, masks, rois=None, window_size=128, augment=False, dilate=50, n_samples=None
+        self, images, masks, rois=None, window_size=128, augment=False, dilate=50
     ):
 
         # initialize
@@ -38,7 +38,6 @@ class VeinGenerator(Dataset):
         self.window_size = window_size
         self.augment = augment
         self.dilate = dilate
-        self.n_samples = n_samples
 
         # break masks into foreground/background indices
         self.indices = self.extract_locations(masks, rois)
@@ -117,11 +116,6 @@ class VeinGenerator(Dataset):
             # convert mask to index
             f_idx = np.array(np.where(f_mask)).T + w  # [F, 2]
             b_idx = np.array(np.where(b_mask)).T + w  # [B, 2]
-
-            # optionally subsample foreground pixels (removes redundancy from
-            # neighboring pixels producing near-identical tiles)
-            if self.n_samples is not None and len(f_idx) > self.n_samples:
-                f_idx = f_idx[np.random.permutation(len(f_idx))[: self.n_samples]]
 
             # randomly subsample background locations
             m = min(10 * len(f_idx), len(b_idx))
