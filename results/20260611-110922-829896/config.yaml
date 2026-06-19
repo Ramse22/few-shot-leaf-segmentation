@@ -6,7 +6,7 @@ data:
 #data paths
   image_path: "../data/images/"
   mask_path: "../data/vein_masks/"
-  roi_path: "../data/leaf_preds/"
+  roi_path: "../data_marion/leaf_preds_jlag_sam3/"
 
 #results paths
   weights_path: "../results/"
@@ -48,7 +48,7 @@ scheduler:
 training:
   epochs: 50
   batch_size: 1024
-  workers: 32
+  workers: 8
   early_stopping: 10
   rel_save_thresh: 0.0
 
@@ -57,11 +57,11 @@ training:
 data_split:
   val_img_names: []
   random_split:
-    seed: 43
+    seed: 42
     val_fraction: 0.2
   dilate: 50
   plot:   false
-  augment: true
+  augmentation: true
 
 ##### optimizer ########
 optimizer:
