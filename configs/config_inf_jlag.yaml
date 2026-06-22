@@ -8,7 +8,7 @@ data:
   roi_path: "../data/leaf_preds/"
 
 #weights paths
-  weights_path: "../results/20260601-112025-063664/vein_grower_best_val_model.save"
+  weights_path: "../results/20260601-142854-749134/vein_grower_best_val_model.save"
 
 #results paths
   pred_path: "../results/"
