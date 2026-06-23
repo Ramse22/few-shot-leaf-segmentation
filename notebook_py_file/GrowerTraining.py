@@ -173,8 +173,8 @@ torchinfo.summary(
 
 epochs = 1000
 batch_size = 1024
-workers = 64
-early_stopping = 20
+workers = 16
+early_stopping = 10
 
 class CheckpointCallback:
     on_train_begin = False
