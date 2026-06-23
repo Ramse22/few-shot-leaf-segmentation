@@ -122,7 +122,7 @@ loss = 'fl' # 'fl' 'bce'
 layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
-save_name = f'vein_grower_{loss}_{window_size}'
+save_name = f'vein_grower_{seed}'
 
 # initialize model and optimizer
 reload(BuildCNN)
@@ -149,9 +149,21 @@ model = MW.ModelWrapper(
     model=cnn,
     optimizer=opt,
     loss=FocalLoss,
-    save_name=f'../weights/{save_name}',
-    log_name=f'../logs/{save_name}.txt',
+    save_name=f'../weights_marion/{save_name}',
+    log_name=f'../logs_marion/{save_name}.txt',
     device=device)
+
+checkpoint_path = f'../weights_marion/{save_name}_checkpoint.pt'
+initial_epoch = 0
+best_val_loss = None
+if os.path.exists(checkpoint_path):
+    print(f'Resuming from checkpoint...')
+    ckpt = torch.load(checkpoint_path, map_location=device)
+    cnn.load_state_dict(ckpt['model_state_dict'])
+    opt.load_state_dict(ckpt['optimizer_state_dict'])
+    initial_epoch = ckpt['epoch'] + 1
+    best_val_loss = ckpt['best_val_loss']
+    print(f'Resuming from epoch {initial_epoch}')
 
 # model summary
 torchinfo.summary(
@@ -164,6 +176,23 @@ batch_size = 1024
 workers = 64
 early_stopping = 20
 
+class CheckpointCallback:
+    on_train_begin = False
+    on_train_end = False
+    on_epoch_begin = False
+    on_batch_begin = False
+    on_batch_end = False
+    on_epoch_end = True
+
+    def __call__(self, wrapper):
+        best_val = min(wrapper.val_loss_list) if wrapper.val_loss_list else 1e12
+        torch.save({
+            'epoch': initial_epoch + len(wrapper.train_loss_list) - 1,
+            'model_state_dict': wrapper.model.state_dict(),
+            'optimizer_state_dict': wrapper.optimizer.state_dict(),
+            'best_val_loss': best_val,
+        }, checkpoint_path)
+
 model.fit(
     train_dataset=train_dataset,
     validation_dataset=val_dataset,
@@ -171,7 +200,10 @@ model.fit(
     epochs=epochs,
     verbose=2,
     early_stopping=early_stopping,
-    workers=workers)
+    workers=workers,
+    initial_epoch=initial_epoch,
+    best_val_loss=best_val_loss,
+    callbacks=[CheckpointCallback()])  # <- added
 
 rel_save_thresh = 0.0
 
@@ -203,91 +235,91 @@ for i in range(len(total_train_losses)):
         val_loss.append(best_val)
 idx = np.argmin(val_loss)
 
-# plot errors and improvements
-fig = plt.figure(figsize=(15,5))
-ax = fig.add_subplot(1, 2, 1)
-plt.plot(total_train_losses, 'b')
-plt.plot(total_val_losses, 'r')
-plt.plot(val_idx[idx], val_loss[idx], 'ko')
-plt.legend([r'Train error', r'Val error', 'Best model'])
-plt.xlabel(r'Epochs')
-plt.ylabel(r'Total Loss')
-plt.title(r'Convergence')
-plt.grid()
-ax = fig.add_subplot(1, 2, 2)
-plt.plot(train_idx, train_loss, 'b.-')
-plt.plot(val_idx, val_loss, 'r.-')
-plt.legend([r'Train error', r'Val error'])
-plt.xlabel('Epochs')
-plt.ylabel(r'Total Loss')
-plt.title(r'Improvements')
-plt.grid()
-plt.tight_layout(h_pad=2, w_pad=2)
-plt.show()
+# # plot errors and improvements
+# fig = plt.figure(figsize=(15,5))
+# ax = fig.add_subplot(1, 2, 1)
+# plt.plot(total_train_losses, 'b')
+# plt.plot(total_val_losses, 'r')
+# plt.plot(val_idx[idx], val_loss[idx], 'ko')
+# plt.legend([r'Train error', r'Val error', 'Best model'])
+# plt.xlabel(r'Epochs')
+# plt.ylabel(r'Total Loss')
+# plt.title(r'Convergence')
+# plt.grid()
+# ax = fig.add_subplot(1, 2, 2)
+# plt.plot(train_idx, train_loss, 'b.-')
+# plt.plot(val_idx, val_loss, 'r.-')
+# plt.legend([r'Train error', r'Val error'])
+# plt.xlabel('Epochs')
+# plt.ylabel(r'Total Loss')
+# plt.title(r'Improvements')
+# plt.grid()
+# plt.tight_layout(h_pad=2, w_pad=2)
+# plt.show()
 
-# plot log-scaled errors and improvements
-fig = plt.figure(figsize=(15,5))
-ax = fig.add_subplot(1, 2, 1)
-plt.semilogy(total_train_losses, 'b')
-plt.semilogy(total_val_losses, 'r')
-plt.semilogy(val_idx[idx], val_loss[idx], 'ko')
-plt.legend([r'Train error', r'Val error', 'Best model'])
-plt.xlabel(r'Epochs')
-plt.ylabel(r'Total Loss')
-plt.title(r'Log Convergence')
-plt.grid()
-ax = fig.add_subplot(1, 2, 2)
-plt.semilogy(train_idx, train_loss, 'b.-')
-plt.semilogy(val_idx, val_loss, 'r.-')
-plt.legend([r'Train error', r'Val error'])
-plt.xlabel('Epochs')
-plt.ylabel(r'Total Loss')
-plt.title(r'Log Improvements')
-plt.grid()
-plt.tight_layout(h_pad=2, w_pad=2)
-plt.show()
+# # plot log-scaled errors and improvements
+# fig = plt.figure(figsize=(15,5))
+# ax = fig.add_subplot(1, 2, 1)
+# plt.semilogy(total_train_losses, 'b')
+# plt.semilogy(total_val_losses, 'r')
+# plt.semilogy(val_idx[idx], val_loss[idx], 'ko')
+# plt.legend([r'Train error', r'Val error', 'Best model'])
+# plt.xlabel(r'Epochs')
+# plt.ylabel(r'Total Loss')
+# plt.title(r'Log Convergence')
+# plt.grid()
+# ax = fig.add_subplot(1, 2, 2)
+# plt.semilogy(train_idx, train_loss, 'b.-')
+# plt.semilogy(val_idx, val_loss, 'r.-')
+# plt.legend([r'Train error', r'Val error'])
+# plt.xlabel('Epochs')
+# plt.ylabel(r'Total Loss')
+# plt.title(r'Log Improvements')
+# plt.grid()
+# plt.tight_layout(h_pad=2, w_pad=2)
+# plt.show()
 
-# load model weights
-model.load_best_val(device=device)
+# # load model weights
+# model.load_best_val(device=device)
 
-# plot example inputs/outputs/predictions
-fig = plt.figure(figsize=(15,15))
-for i in range(9*3):
+# # plot example inputs/outputs/predictions
+# fig = plt.figure(figsize=(15,15))
+# for i in range(9*3):
     
-    # predict on random validation tile
-    rand_idx = np.random.choice(len(val_dataset))
-    tile, true = val_dataset[rand_idx]
-    pred = model.predict(tile[None].to(device))[0]
-    tile = val_dataset.image2numpy(tile)
-    true = true.detach().cpu().numpy()[0]
-    pred = pred.detach().cpu().numpy()[0]
+#     # predict on random validation tile
+#     rand_idx = np.random.choice(len(val_dataset))
+#     tile, true = val_dataset[rand_idx]
+#     pred = model.predict(tile[None].to(device))[0]
+#     tile = val_dataset.image2numpy(tile)
+#     true = true.detach().cpu().numpy()[0]
+#     pred = pred.detach().cpu().numpy()[0]
     
-    # apply thresholds to probabilities
-    n_chunks = 5
-    pred = pred[:, :, None] > np.arange(1, n_chunks+1)[None, None]/n_chunks
-    pred = pred.sum(-1)/(n_chunks-1)
+#     # apply thresholds to probabilities
+#     n_chunks = 5
+#     pred = pred[:, :, None] > np.arange(1, n_chunks+1)[None, None]/n_chunks
+#     pred = pred.sum(-1)/(n_chunks-1)
     
-    # plot tile, ground truth, and prediction
-    ax = fig.add_subplot(9, 9, i*3 + 1)
-    plt.imshow(tile, vmin=0, vmax=1)
-    plt.plot([62, 66, 66, 62, 62], [62, 62, 66, 66, 62], 'k-', linewidth=1)
-    if i//3 == 0: plt.title('Input tile')
+#     # plot tile, ground truth, and prediction
+#     ax = fig.add_subplot(9, 9, i*3 + 1)
+#     plt.imshow(tile, vmin=0, vmax=1)
+#     plt.plot([62, 66, 66, 62, 62], [62, 62, 66, 66, 62], 'k-', linewidth=1)
+#     if i//3 == 0: plt.title('Input tile')
     
-    ax = fig.add_subplot(9, 9, i*3 + 2)
-    plt.imshow(true, cmap='gray', vmin=0, vmax=1)
-    plt.plot([0.5, 0.5], [-0.5, 2.5], c='gray')
-    plt.plot([1.5, 1.5], [-0.5, 2.5], c='gray')
-    plt.plot([-0.5, 2.5], [0.5, 0.5], c='gray')
-    plt.plot([-0.5, 2.5], [1.5, 1.5], c='gray')
-    if i//3 == 0: plt.title('Ground truth')
+#     ax = fig.add_subplot(9, 9, i*3 + 2)
+#     plt.imshow(true, cmap='gray', vmin=0, vmax=1)
+#     plt.plot([0.5, 0.5], [-0.5, 2.5], c='gray')
+#     plt.plot([1.5, 1.5], [-0.5, 2.5], c='gray')
+#     plt.plot([-0.5, 2.5], [0.5, 0.5], c='gray')
+#     plt.plot([-0.5, 2.5], [1.5, 1.5], c='gray')
+#     if i//3 == 0: plt.title('Ground truth')
     
-    ax = fig.add_subplot(9, 9, i*3 + 3)
-    plt.imshow(pred, cmap='plasma', vmin=0, vmax=1)
-    plt.plot([0.5, 0.5], [-0.5, 2.5], c='gray')
-    plt.plot([1.5, 1.5], [-0.5, 2.5], c='gray')
-    plt.plot([-0.5, 2.5], [0.5, 0.5], c='gray')
-    plt.plot([-0.5, 2.5], [1.5, 1.5], c='gray')
-    if i//3 == 0: plt.title('Prediction')
+#     ax = fig.add_subplot(9, 9, i*3 + 3)
+#     plt.imshow(pred, cmap='plasma', vmin=0, vmax=1)
+#     plt.plot([0.5, 0.5], [-0.5, 2.5], c='gray')
+#     plt.plot([1.5, 1.5], [-0.5, 2.5], c='gray')
+#     plt.plot([-0.5, 2.5], [0.5, 0.5], c='gray')
+#     plt.plot([-0.5, 2.5], [1.5, 1.5], c='gray')
+#     if i//3 == 0: plt.title('Prediction')
     
-plt.tight_layout(pad=0.5)
-plt.show()
+# plt.tight_layout(pad=0.5)
+# plt.show()
