@@ -1,4 +1,5 @@
-import os, sys, time
+import os
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -9,24 +10,22 @@ import torch.multiprocessing as mp
 mp.set_sharing_strategy("file_system")
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-
 sys.path.append("../")
+
 import utils.ImageLoader as ImageLoader
 import utils.VeinGenerator as VeinGenerator
 from utils.GetLowestGPU import GetLowestGPU
 import models.BuildCNN as BuildCNN
+from torch.utils.data import DataLoader
 
 if "device" not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
 
-#### Load images ####
+#### Load data ####
 
 image_path = "../data/images/"
 mask_path = "../data/vein_masks/"
 roi_path = "../data/leaf_preds/"
-image_extension = ".jpeg"
-mask_extension = ".png"
-roi_extension = ".png"
 window_size = 128
 
 reload(ImageLoader)
@@ -34,21 +33,17 @@ IL = ImageLoader.ImageLoader(
     image_path=image_path,
     mask_path=mask_path,
     roi_path=roi_path,
-    image_ext=image_extension,
-    mask_ext=mask_extension,
-    roi_ext=roi_extension,
+    image_ext=".jpeg",
+    mask_ext=".png",
+    roi_ext=".png",
     window_size=window_size,
     verbose=False,
 )
-
 images, masks, rois = IL.load_data()
 file_names = IL.file_names
 rois = [(rois[i] + masks[i]).clip(0, 1) for i in range(len(rois))]
 
-#### Make data loader ####
-
 val_img_idx = [file_names.index(l) for l in ["C_1_14_18_bot.png", "C_1_8_1_bot.png"]]
-dilate = 50
 
 reload(VeinGenerator)
 train_dataset = VeinGenerator.VeinGenerator(
@@ -57,15 +52,10 @@ train_dataset = VeinGenerator.VeinGenerator(
     rois=[rois[i] for i in range(len(rois)) if i not in val_img_idx],
     window_size=window_size,
     augment=True,
-    dilate=dilate,
+    dilate=50,
 )
 
-#### Learning Rate Finder ####
-
-initial_lr = 1e-5
-final_lr = 1.0
-num_iterations = 100
-batch_size = 256
+#### Build model ####
 
 reload(BuildCNN)
 cnn = BuildCNN.CNN(
@@ -74,98 +64,90 @@ cnn = BuildCNN.CNN(
     output_shape=[2, 3, 3],
     output_activation=torch.nn.Softmax2d(),
 ).to(device)
-opt = torch.optim.Adam(cnn.parameters(), lr=initial_lr)
-
-gamma, alpha = 2.0, 0.25
 
 
-def FocalLoss(pred, target):
+def focal_loss(pred, target, gamma=2.0, alpha=0.25):
     pred = pred.clamp(min=1e-7, max=1.0 - 1e-7)
     pt_1 = torch.where(target == 1, pred, torch.ones_like(pred))
     pt_0 = torch.where(target == 0, pred, torch.zeros_like(pred))
-    out = -torch.mean(alpha * ((1.0 - pt_1) ** gamma) * torch.log(pt_1))
-    out = out - torch.mean((1.0 - alpha) * (pt_0**gamma) * torch.log(1.0 - pt_0))
-    return out
+    return (
+        -torch.mean(alpha * ((1.0 - pt_1) ** gamma) * torch.log(pt_1))
+        - torch.mean((1.0 - alpha) * (pt_0**gamma) * torch.log(1.0 - pt_0))
+    )
 
 
-from torch.utils.data import DataLoader
+#### LR Finder (replicates Lightning's lr_find) ####
 
-train_loader = DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=True, num_workers=16
-)
+min_lr = 1e-8
+max_lr = 1.0
+num_steps = 100
+batch_size = 256
+beta = 0.98  # exponential smoothing factor (same as Lightning default)
 
-lrs = []
-losses = []
+loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
+opt = torch.optim.Adam(cnn.parameters(), lr=min_lr)
+
+lrs, losses, avg_loss = [], [], 0.0
 best_loss = None
+cnn.train()
+data_iter = iter(loader)
 
 print("Running LR finder...")
-cnn.train()
-iteration = 0
+for step in range(num_steps):
+    try:
+        x, y = next(data_iter)
+    except StopIteration:
+        data_iter = iter(loader)
+        x, y = next(data_iter)
 
-for x_true, y_true in train_loader:
-    if iteration >= num_iterations:
-        break
+    lr = min_lr * (max_lr / min_lr) ** (step / num_steps)
+    for pg in opt.param_groups:
+        pg["lr"] = lr
 
-    lr = initial_lr * (final_lr / initial_lr) ** (iteration / num_iterations)
-    for param_group in opt.param_groups:
-        param_group["lr"] = lr
-
-    x_true = x_true.to(device).contiguous()
-    y_true = y_true.to(device).contiguous()
-
+    x = x.to(device).contiguous()
+    y = y.to(device).contiguous()
     opt.zero_grad()
-    y_pred = cnn(x_true)
-    loss = FocalLoss(y_pred, y_true)
+    loss = focal_loss(cnn(x), y)
     loss.backward()
     opt.step()
 
-    loss_value = loss.cpu().detach().numpy()
+    # bias-corrected exponential smoothing (same as Lightning)
+    avg_loss = beta * avg_loss + (1 - beta) * loss.item()
+    smoothed = avg_loss / (1 - beta ** (step + 1))
+
     lrs.append(lr)
-    losses.append(loss_value)
+    losses.append(smoothed)
 
-    if best_loss is None:
-        best_loss = loss_value
-    else:
-        # Stop if loss explodes (increases by 10x from best)
-        if loss_value > 10 * best_loss:
-            print(f"Loss exploded at iteration {iteration}.")
-            break
-        if loss_value < best_loss:
-            best_loss = loss_value
+    if best_loss is None or smoothed < best_loss:
+        best_loss = smoothed
 
-    iteration += 1
+    if smoothed > 4 * best_loss:
+        print(f"Loss diverged at step {step}, stopping early.")
+        break
 
-print(f"Completed {iteration} iterations.\n")
+print(f"Completed {len(lrs)} steps.")
 
-#### Plot Results ####
+#### Suggest LR (steepest descent, same as Lightning's .suggestion()) ####
 
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(lrs, losses, "b-", linewidth=2, label="Loss")
-ax.set_xlabel("Learning Rate (log scale)", fontsize=12)
-ax.set_ylabel("Loss", fontsize=12)
-ax.set_title("Learning Rate Finder", fontsize=14)
-ax.grid(True, alpha=0.3)
+losses_arr = np.array(losses)
+lrs_arr = np.array(lrs)
+suggested_idx = np.argmin(np.gradient(losses_arr))
+suggested_lr = lrs_arr[suggested_idx]
+
+print(f"\nSuggested LR: {suggested_lr:.2e}")
+print(f"Usage: opt = torch.optim.Adam(cnn.parameters(), lr={suggested_lr:.2e})")
+
+#### Plot ####
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.plot(lrs_arr, losses_arr, linewidth=2, label="Loss (smoothed)")
+ax.axvline(suggested_lr, color="red", linestyle="--", label=f"Suggested: {suggested_lr:.2e}")
 ax.set_xscale("log")
+ax.set_xlabel("Learning Rate")
+ax.set_ylabel("Loss")
+ax.set_title("LR Finder")
 ax.legend()
-
+ax.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig("lr_finder_results.png", dpi=150, bbox_inches="tight")
 plt.show()
-
-#### Recommendations ####
-
-# Find the learning rate with minimum loss (PyTorch Lightning approach)
-best_loss_idx = np.argmin(losses)
-best_loss_value = losses[best_loss_idx]
-best_loss_lr = lrs[best_loss_idx]
-
-# Recommended LR is typically 10x lower than the best LR found
-# (to stay in the improving region but with margin)
-recommended_lr = best_loss_lr / 10
-
-print("=" * 60)
-print(f"Best loss: {best_loss_value:.4e} at LR = {best_loss_lr:.2e}")
-print(f"Recommended LR (10x lower): {recommended_lr:.2e}")
-print(f"\nUsage in your main script:")
-print(f"  opt = torch.optim.Adam(cnn.parameters(), lr={recommended_lr:.2e})")
-print("=" * 60)

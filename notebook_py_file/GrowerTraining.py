@@ -28,6 +28,7 @@ if "device" not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
 
 #### Load config ####
+
 config_path = sys.argv[1] if len(sys.argv) > 1 else "../configs/config.yaml"
 with open(config_path, "r") as f:
     config = yaml.safe_load(f)
