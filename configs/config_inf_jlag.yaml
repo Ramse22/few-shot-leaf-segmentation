@@ -37,7 +37,7 @@ inference:
   threshold: Null  #originally Null
   post_process: True
   max_number: Null  # number of images to segment, set to None for all images
-  verbose: Null
+  verbose: True
   save: True
-  show: True
+  show: False
   fig_size: 15

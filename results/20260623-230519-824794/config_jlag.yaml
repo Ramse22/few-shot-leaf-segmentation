@@ -57,7 +57,7 @@ training:
 data_split:
   val_img_names: []
   random_split:
-    seed: 46
+    seed: 45
     val_fraction: 0.2
   dilate: 50
   plot:   false
