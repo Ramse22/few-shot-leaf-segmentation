@@ -165,7 +165,12 @@ class VeinGrower:
             peaks, _ = find_peaks(
                 -n_objects / sizes, prominence=100 / sizes.max(), distance=10
             )
-            threshold = thresholds[peaks[0]]
+            if len(peaks) == 0:
+                threshold = thresholds[np.argmin(n_objects / sizes)]
+                if self.verbose:
+                    print(f"Warning: no peak found, using fallback threshold {threshold:.2f}")
+            else:
+                threshold = thresholds[peaks[0]]
         veins = 1.0 * np.array(probs[0] > threshold)
 
         # keep largest object (e.g., petiole) outside of the ROI
