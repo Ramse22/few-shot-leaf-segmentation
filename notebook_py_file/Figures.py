@@ -1,0 +1,135 @@
+import os, glob
+import yaml
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+from skimage import measure
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+### Paths ###
+results_path = "../results/"
+mask_path    = "../data/vein_masks/"
+image_path   = "../data/images/"
+save_path    = "../figures_marion/"
+os.makedirs(save_path, exist_ok=True)
+
+# config filename: display label for each approach
+APPROACHES = {
+    "config.yaml":          "Our approach",
+    "config_jlag.yaml":     "JLAG",
+    "config_original.yaml": "Original",
+}
+
+### some functions ###
+
+# intersection over union
+def iou(a, b):
+    i = (a.astype(bool) * b.astype(bool)).sum()
+    u = (a.astype(bool) + b.astype(bool)).clip(0, 1).sum()
+    return i / u
+
+# Figure 1 - Example vein prediction for each config/approach
+
+example_name   = "C_1_1_2_bot"
+leaf_pred_path = "../data_marion/leaf_preds_jlag_sam3/"
+rmin, rmax  = 600, 3200
+cmin, cmax  = 600, 2000
+figsize     = 5
+n_tick      = 400
+plot_width  = figsize
+plot_height = (rmax - rmin) / (cmax - cmin) * figsize
+
+# find the first run directory for each approach that has predictions
+approach_runs = {label: [] for label in APPROACHES.values()}
+for run_dir in sorted(glob.glob(results_path + "*/")):
+    for config_name, label in APPROACHES.items():
+        if os.path.exists(run_dir + config_name):
+            approach_runs[label].append(run_dir)
+            break
+
+fig_runs = [
+    (label, runs[0])
+    for label, runs in approach_runs.items()
+    if runs and os.path.exists(runs[0] + "vein_fl_preds/" + example_name + ".png")
+]
+
+if fig_runs:
+    n = len(fig_runs)
+    fig, axes = plt.subplots(1, n, figsize=[n * plot_width, plot_height], constrained_layout=True)
+    if n == 1:
+        axes = [axes]
+
+    image      = np.array(Image.open(image_path + example_name + ".jpeg"), dtype=float) / 255
+    image_crop = image[rmin:rmax, cmin:cmax]
+
+    leaf_file = leaf_pred_path + example_name + ".png"
+    contour   = None
+    if os.path.exists(leaf_file):
+        leaf_crop = (np.array(Image.open(leaf_file), dtype=float)[:, :, 0] > 128)[rmin:rmax, cmin:cmax]
+        contour   = measure.find_contours(leaf_crop, 0.5)[0]
+
+    for ax, (label, run_dir) in zip(axes, fig_runs):
+        vein_crop  = (np.array(Image.open(run_dir + "vein_fl_preds/" + example_name + ".png"), dtype=float)[:, :, 0] > 128)[rmin:rmax, cmin:cmax]
+        plot_image = image_crop.copy()
+        plot_image[vein_crop] = [1, 0, 0]
+        plt.sca(ax)
+        plt.imshow(plot_image, vmin=0, vmax=1, extent=[cmin, cmax, rmax, rmin])
+        if contour is not None:
+            plt.plot(contour[:, 1] + cmin, contour[:, 0] + rmin, "b-", linewidth=2)
+        plt.xticks([i * n_tick for i in range(8)], [i * n_tick for i in range(8)], fontsize=12)
+        plt.yticks([i * n_tick for i in range(8)], [i * n_tick for i in range(8)], fontsize=12)
+        plt.xlim([cmin, cmax - 1])
+        plt.ylim([rmax, rmin])
+        ax.set_title(label, fontsize=15)
+
+    plt.savefig(save_path + "figure_1.png", bbox_inches="tight", dpi=200)
+    plt.show()
+
+
+# IoU per run (between vein_mask and vein_pred for each run/approach/seed)
+
+def reduce_dim(mask):
+    return mask[:, :, 0] if len(mask.shape) == 3 else mask
+
+iou_by_approach = {label: [] for label in APPROACHES.values()}
+
+for run_dir in sorted(glob.glob(results_path + "*/")):
+    # identify approach from config yaml present in this run
+    label = None
+    for config_name, approach_label in APPROACHES.items():
+        if os.path.exists(run_dir + config_name):
+            label = approach_label
+            break
+    if label is None:
+        continue
+
+    pred_dir = run_dir + "vein_fl_preds/"
+    if not os.path.exists(pred_dir):
+        continue
+
+    for mask_file in sorted(glob.glob(mask_path + "*.png")):
+        pred_file = pred_dir + os.path.basename(mask_file)
+        if not os.path.exists(pred_file):
+            continue
+        gt   = reduce_dim((np.array(Image.open(mask_file)) / 255) > 0.5)
+        pred = reduce_dim((np.array(Image.open(pred_file)) / 255) > 0.5)
+        iou_by_approach[label].append(iou(gt, pred))
+
+
+# Boxplot of IoU for each approach (across seeds)
+
+approach_labels = [label for label in APPROACHES.values() if iou_by_approach[label]]
+approach_data   = [iou_by_approach[label] for label in approach_labels]
+
+if approach_data:
+    fig, ax = plt.subplots(figsize=[max(5, 3 * len(approach_labels)), 5])
+    ax.boxplot(approach_data, tick_labels=approach_labels)
+    plt.ylabel("IoU (vein mask vs. prediction)", fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.ylim([0, 1])
+    plt.grid(axis="y")
+    plt.savefig(save_path + "figure_boxplot_iou.png", bbox_inches="tight", dpi=200)
+    plt.show()
+
