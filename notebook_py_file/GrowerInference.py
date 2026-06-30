@@ -20,7 +20,8 @@ if "device" not in locals():
 
 #### Load config ####
 
-with open("../configs/config_inf.yaml", "r") as f:
+config_path = sys.argv[1] if len(sys.argv) > 1 else "../configs/config_inf.yaml"
+with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
 #### initialize grower ####
