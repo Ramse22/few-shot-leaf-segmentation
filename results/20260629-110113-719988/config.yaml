@@ -1,0 +1,68 @@
+# A config file with all the parameter for Growertraining.py runs.
+
+######## Data paths and formats ########
+
+data:
+#data paths
+  image_path: "../data/images/"
+  mask_path: "../data/vein_masks/"
+  roi_path: "../data_marion/leaf_preds_jlag_sam3/"
+
+#results paths
+  weights_path: "../results/"
+  logs_path: "../results/"
+
+#formats
+  image_extension: ".jpeg"
+  mask_extension: ".png"
+  roi_extension: ".png" 
+
+  window_size: 64
+
+########## Model parameters ###########
+
+model:
+  loss:              "fl"           # "fl" or "bce"
+  layers:            [3, 32, 32, 32, 32, 64, 128]
+  output_shape:      [2, 3, 3]
+  output_activation: "Softmax2d"    # instantiate in Python
+  save_name:         "vein_grower"
+  dropout: 0.25
+
+############## Focal loss ###############
+
+focal_loss:
+  gamma: 2.0
+  alpha: 0.25
+
+########## Scheduler parameters ###########
+
+scheduler:
+  patience: 2
+  factor: 0.5
+  mode: "min"
+  threshold: 1e-4
+
+########### Training parameters ###########
+
+training:
+  epochs: 50
+  batch_size: 1024
+  workers: 8
+  early_stopping: 10
+  rel_save_thresh: 0.0
+
+########### Train/val split and ROI extension ###########
+
+data_split:
+  val_img_names: []
+  random_split:
+    seed: 46
+    val_fraction: 0.2
+  dilate: 50
+  plot:   false
+  augmentation: true
+
+##### optimizer ########
+optimizer:
+  opt_lr: 5e-3
