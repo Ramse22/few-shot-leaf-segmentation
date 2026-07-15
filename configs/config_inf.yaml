@@ -9,7 +9,7 @@ data:
 
 
 #weights paths
-  weights_path: "../results/20260618-141818-091522/vein_grower_best_val_model.save"
+  weights_path: "../results/20260623-215548-147818/vein_grower_best_val_model.save"
 
 #results paths
   pred_path: "../results/"
