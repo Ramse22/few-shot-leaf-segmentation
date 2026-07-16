@@ -5,7 +5,7 @@
 data:
 #data paths
   image_path: "../data/images/"
-  roi_path: "../data/leaf_preds/"
+  roi_path: "../data/leaf_preds_jlags_sam3/"
 
 #weights paths
   weights_path: "../results/20260619-110208-443617/vein_grower_best_val_model.save"

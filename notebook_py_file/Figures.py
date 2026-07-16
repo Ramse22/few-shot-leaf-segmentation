@@ -87,6 +87,49 @@ if fig_runs:
     plt.show()
 
 
+# Figure - leaf + predicted vein mask for run 42 (Normal / "our approach")
+# Uses C_1_14_18_bot since it already has a prediction in this run's vein_fl_preds/
+
+run42_normal_dir  = results_path + "20260601-112025-063664/"
+run42_example     = "C_1_14_18_bot"
+run42_pred_file   = run42_normal_dir + "vein_fl_preds/" + run42_example + ".png"
+
+if os.path.exists(run42_pred_file):
+    rmin2, rmax2 = 150, 3200
+    cmin2, cmax2 = 900, 1900
+    plot_height2 = (rmax2 - rmin2) / (cmax2 - cmin2) * figsize
+
+    image2      = np.array(Image.open(image_path + run42_example + ".jpeg"), dtype=float) / 255
+    image_crop2 = image2[rmin2:rmax2, cmin2:cmax2]
+
+    leaf_file2 = leaf_pred_path + run42_example + ".png"
+    contour2   = None
+    if os.path.exists(leaf_file2):
+        leaf_arr2  = np.array(Image.open(leaf_file2), dtype=float)
+        leaf_crop2 = (leaf_arr2[:, :, 0] if leaf_arr2.ndim == 3 else leaf_arr2) > 128
+        leaf_crop2 = leaf_crop2[rmin2:rmax2, cmin2:cmax2]
+        contour2   = measure.find_contours(leaf_crop2, 0.5)[0]
+
+    vein_arr2  = np.array(Image.open(run42_pred_file), dtype=float)
+    vein_crop2 = (vein_arr2[:, :, 0] if vein_arr2.ndim == 3 else vein_arr2) > 128
+    vein_crop2 = vein_crop2[rmin2:rmax2, cmin2:cmax2]
+    plot_image2 = image_crop2.copy()
+    plot_image2[vein_crop2] = [1, 0, 0]
+
+    fig = plt.figure(figsize=[plot_width, plot_height2], constrained_layout=True)
+    plt.imshow(plot_image2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
+    if contour2 is not None:
+        plt.plot(contour2[:, 1] + cmin2, contour2[:, 0] + rmin2, "b-", linewidth=2)
+    plt.xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)], fontsize=12)
+    plt.yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)], fontsize=12)
+    plt.xlim([cmin2, cmax2 - 1])
+    plt.ylim([rmax2, rmin2])
+    plt.title("Our approach - run 42 (" + run42_example + ")", fontsize=15)
+
+    plt.savefig(save_path + "figure_run42_normal.png", bbox_inches="tight", dpi=200)
+    plt.show()
+
+
 # IoU per run (between vein_mask and vein_pred for each run/approach/seed)
 
 def reduce_dim(mask):
