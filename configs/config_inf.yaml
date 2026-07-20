@@ -35,7 +35,7 @@ model:
 inference:
   n_locs: 10000  # number of seed pixels originally 10000
   batch_size: 2048  #originally 2048
-  threshold: Null  #originally Null
+  threshold: 0.5  #originally Null
   post_process: True
   max_number: Null  # number of images to segment, set to None for all images
   verbose: Null
