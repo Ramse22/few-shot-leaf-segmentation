@@ -1,0 +1,44 @@
+# A config file with all the parameter for Growertraining.py runs.
+
+######## Data paths and formats ########
+
+data:
+#data paths
+  image_path: "../data/images/"
+  roi_path: "../data_marion/leaf_preds_jlag_sam3/"
+
+
+#weights paths
+  weights_path: "../results/20260625-143508-093659/vein_grower_best_val_model.save"
+
+#results paths
+  pred_path: "../results/"
+  prob_path: "../results/"
+
+#formats
+  roi_extension: "png"
+  pred_extension: "png"
+  prob_extension: "png"
+
+  window_size: 64
+
+########## Model parameters ###########
+
+model:
+  loss:              "fl"           # "fl" or "bce"
+  layers:            [3, 32, 32, 32, 32, 64, 128]
+  output_shape:      [2, 3, 3]
+  output_activation: "Softmax2d"    # instantiate in Python
+
+########### Training parameters ###########
+
+inference:
+  n_locs: 10000  # number of seed pixels originally 10000
+  batch_size: 2048  #originally 2048
+  threshold: Null  #originally Null
+  post_process: True
+  max_number: Null  # number of images to segment, set to None for all images
+  verbose: Null
+  save: True
+  show: False
+  fig_size: 15
