@@ -19,13 +19,7 @@ from utils.GetLowestGPU import GetLowestGPU
 if "device" not in locals():
     device = torch.device(GetLowestGPU(verbose=2))
 
-#### Load config ####
-
-# config_path = sys.argv[1] if len(sys.argv) > 1 else "../configs/config_inf.yaml"
-# with open(config_path, "r") as f:
-#     config = yaml.safe_load(f)
-
-config_path = "../configs/config_inf_jlag.yaml"
+config_path = sys.argv[1] if len(sys.argv) > 1 else "../configs/config_inf.yaml"
 with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
