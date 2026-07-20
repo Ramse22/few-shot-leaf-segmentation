@@ -29,6 +29,10 @@ def iou(a, b):
     u = (a.astype(bool) + b.astype(bool)).clip(0, 1).sum()
     return i / u
 
+def reduce_dim(mask):
+    return mask[:, :, 0] if len(mask.shape) == 3 else mask
+
+
 # Figure 1 - Example vein prediction for each config/approach
 
 example_name   = "C_1_1_2_bot"
@@ -87,12 +91,13 @@ if fig_runs:
     plt.show()
 
 
-# Figure - leaf + predicted vein mask for run 42 (Normal / "our approach")
+# Figure - image seule / + masque reel / + masque predit + contour (run 42, "our approach")
 # Uses C_1_14_18_bot since it already has a prediction in this run's vein_fl_preds/
 
 run42_normal_dir  = results_path + "20260601-112025-063664/"
 run42_example     = "C_1_14_18_bot"
 run42_pred_file   = run42_normal_dir + "vein_fl_preds/" + run42_example + ".png"
+run42_real_file   = mask_path + run42_example + ".png"
 
 if os.path.exists(run42_pred_file):
     rmin2, rmax2 = 150, 3200
@@ -113,27 +118,55 @@ if os.path.exists(run42_pred_file):
     vein_arr2  = np.array(Image.open(run42_pred_file), dtype=float)
     vein_crop2 = (vein_arr2[:, :, 0] if vein_arr2.ndim == 3 else vein_arr2) > 128
     vein_crop2 = vein_crop2[rmin2:rmax2, cmin2:cmax2]
+
+    # masque reel, meme convention de binarisation que pour le calcul d'IoU plus bas
+    real_crop2 = None
+    if os.path.exists(run42_real_file):
+        real_arr2  = np.array(Image.open(run42_real_file), dtype=float)
+        real_bin2  = reduce_dim(real_arr2) / 255 > 0.5
+        real_crop2 = real_bin2[rmin2:rmax2, cmin2:cmax2]
+
+    n_panels = 2 + (real_crop2 is not None)
+    fig, axes = plt.subplots(1, n_panels, figsize=[n_panels * plot_width, plot_height2], constrained_layout=True)
+
+    panel_idx = 0
+
+    # Panneau : image seule
+    plt.sca(axes[panel_idx])
+    plt.imshow(image_crop2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
+    axes[panel_idx].set_title("Image de base", fontsize=15)
+    panel_idx += 1
+
+    # Panneau : image + masque reel (si dispo)
+    if real_crop2 is not None:
+        plot_real2 = image_crop2.copy()
+        plot_real2[real_crop2] = [1, 0, 0]
+        plt.sca(axes[panel_idx])
+        plt.imshow(plot_real2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
+        axes[panel_idx].set_title("+ masque reel (veines)", fontsize=15)
+        panel_idx += 1
+
+    # Panneau : image + masque predit + contour feuille
     plot_image2 = image_crop2.copy()
     plot_image2[vein_crop2] = [1, 0, 0]
-
-    fig = plt.figure(figsize=[plot_width, plot_height2], constrained_layout=True)
+    plt.sca(axes[panel_idx])
     plt.imshow(plot_image2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
     if contour2 is not None:
         plt.plot(contour2[:, 1] + cmin2, contour2[:, 0] + rmin2, "b-", linewidth=2)
-    plt.xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)], fontsize=12)
-    plt.yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)], fontsize=12)
-    plt.xlim([cmin2, cmax2 - 1])
-    plt.ylim([rmax2, rmin2])
-    plt.title("Our approach - run 42 (" + run42_example + ")", fontsize=15)
+    axes[panel_idx].set_title("Our approach - run 42 (" + run42_example + ")", fontsize=15)
+
+    for ax in axes:
+        ax.set_xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)])
+        ax.set_yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)])
+        ax.tick_params(labelsize=12)
+        ax.set_xlim([cmin2, cmax2 - 1])
+        ax.set_ylim([rmax2, rmin2])
 
     plt.savefig(save_path + "figure_run42_normal.png", bbox_inches="tight", dpi=200)
     plt.show()
 
 
 # IoU per run (between vein_mask and vein_pred for each run/approach/seed)
-
-def reduce_dim(mask):
-    return mask[:, :, 0] if len(mask.shape) == 3 else mask
 
 iou_by_approach = {label: [] for label in APPROACHES.values()}
 
@@ -175,4 +208,3 @@ if approach_data:
     plt.grid(axis="y")
     plt.savefig(save_path + "figure_boxplot_iou.png", bbox_inches="tight", dpi=200)
     plt.show()
-

@@ -7,6 +7,7 @@ from PIL import Image
 from importlib import reload
 from skimage import measure
 import yaml
+import shutil
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -86,6 +87,10 @@ else:
 os.makedirs(pred_path, exist_ok=True)
 os.makedirs(prob_path, exist_ok=True)
 
+inference_config_save_path = os.path.join(weights_dir, "config_inference_used.yaml")
+shutil.copy(config_path, inference_config_save_path)
+print(f"Saved inference config to {inference_config_save_path}")
+
 image_extension = "*"
 roi_extension = config["data"]["roi_extension"]
 pred_extension = config["data"]["pred_extension"]
@@ -118,6 +123,7 @@ for image_idx, image_name in enumerate(image_names):
     if verbose:
         print(f"Loading {image_name}...")
     image = np.array(Image.open(image_path + image_name), dtype=np.float32) / 255
+    print(f"[{image_name}] IMAGE shape={image.shape}, ndim={image.ndim}, dtype={image.dtype}")
     if roi_path is not None:
         roi_candidates = [
             roi_path + image_name.replace(image_extension, roi_extension),
@@ -131,6 +137,7 @@ for image_idx, image_name in enumerate(image_names):
 
         if roi_file:
             roi_array = np.array(Image.open(roi_file), dtype=np.float32) / 255
+            print(f"[{image_name}] ROI shape={roi_array.shape}, ndim={roi_array.ndim}, dtype={roi_array.dtype}")
 
             # Handle both 2D (grayscale) and 3D (RGB) masks
             if roi_array.ndim == 3:  # RGB mask

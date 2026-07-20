@@ -5,7 +5,7 @@
 data:
 #data paths
   image_path: "../data/images/"
-  roi_path: "../data/leaf_preds_jlags_sam3/"
+  roi_path: "../data/leaf_preds/"
 
 #weights paths
   weights_path: "../results/20260619-110208-443617/vein_grower_best_val_model.save"
@@ -36,8 +36,8 @@ inference:
   batch_size: 2048  #originally 2048
   threshold: Null  #originally Null
   post_process: True
-  max_number: Null  # number of images to segment, set to None for all images
-  verbose: True
+  max_number: 3  #originally Null
+  verbose: True #originally Null
   save: True
   show: False
   fig_size: 15
