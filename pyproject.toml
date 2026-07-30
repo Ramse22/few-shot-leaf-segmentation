@@ -1,7 +1,7 @@
 [project]
 name = "few-shot-leaf-segmentation"
 version = "0.1.0"
-description = "Add your description here"
+description = "Leaf vein segmentation using few shot method by Lagergren et al. 2023"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -14,9 +14,7 @@ dependencies = [
     "ruff>=0.15.18",
     "scikit-image>=0.26.0",
     "scipy>=1.17.1",
-    "torch>=2.5.1",
     "torchinfo>=1.8.0",
-    "torchvision>=0.20.1",
     "tqdm>=4.67.3",
 ]
 

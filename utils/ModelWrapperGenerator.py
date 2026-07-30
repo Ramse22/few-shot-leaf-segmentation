@@ -128,7 +128,7 @@ class ModelWrapper():
             val_length = len(validation_dataset) 
             val_batches_per_epoch = int(len(validation_dataset)/batch_size)
         start_time = time.time()
-        last_improved_train, last_improved_val = 0, 0
+        last_improved_train, last_improved_val = initial_epoch, initial_epoch
         best_train_loss = 1e12 if best_train_loss is None else best_train_loss
         best_val_loss = 1e12 if best_val_loss is None else best_val_loss
         
