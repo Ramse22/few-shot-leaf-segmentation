@@ -92,7 +92,7 @@ if fig_runs:
 
 
 # Figure - image seule / + masque reel / + masque predit + contour (run 42, "our approach")
-# Uses C_1_14_18_bot since it already has a prediction in this run's vein_fl_preds/
+# Uses C_1_11_1_bot since it already has a prediction in this run's vein_fl_preds/
 
 run42_normal_dir  = results_path + "20260601-112025-063664/"
 run42_example     = "C_1_14_18_bot"
@@ -163,6 +163,54 @@ if os.path.exists(run42_pred_file):
         ax.set_ylim([rmax2, rmin2])
 
     plt.savefig(save_path + "figure_run42_normal.png", bbox_inches="tight", dpi=200)
+    plt.show()
+
+
+# Figure - masque de comparaison (reel vs predit) pour run 42
+# rouge = en commun (TP), bleu = uniquement dans le masque reel (FN), vert = uniquement dans la prediction (FP)
+
+if os.path.exists(run42_pred_file) and real_crop2 is not None:
+    tp = real_crop2 & vein_crop2
+    fn = real_crop2 & ~vein_crop2
+    fp = ~real_crop2 & vein_crop2
+
+    plot_diff2 = image_crop2.copy()
+    plot_diff2[fn] = [0, 0, 1]
+    plot_diff2[fp] = [0, 1, 0]
+    plot_diff2[tp] = [1, 0, 0]
+
+    fig, ax = plt.subplots(figsize=[plot_width, plot_height2], constrained_layout=True)
+    plt.imshow(plot_diff2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
+    if contour2 is not None:
+        plt.plot(contour2[:, 1] + cmin2, contour2[:, 0] + rmin2, "k-", linewidth=2)
+    ax.set_title("Comparaison masque reel / predit - run 42 (" + run42_example + ")", fontsize=15)
+    ax.set_xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)])
+    ax.set_yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)])
+    ax.tick_params(labelsize=12)
+    ax.set_xlim([cmin2, cmax2 - 1])
+    ax.set_ylim([rmax2, rmin2])
+
+    plt.savefig(save_path + "figure_run42_diff.png", bbox_inches="tight", dpi=200)
+    plt.show()
+
+    # meme figure, sans l'image de la feuille en fond (fond blanc, que les masques)
+    plot_diff2_maskonly = np.ones_like(image_crop2)
+    plot_diff2_maskonly[fn] = [0, 0, 1]
+    plot_diff2_maskonly[fp] = [0, 1, 0]
+    plot_diff2_maskonly[tp] = [1, 0, 0]
+
+    fig, ax = plt.subplots(figsize=[plot_width, plot_height2], constrained_layout=True)
+    plt.imshow(plot_diff2_maskonly, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
+    if contour2 is not None:
+        plt.plot(contour2[:, 1] + cmin2, contour2[:, 0] + rmin2, "k-", linewidth=2)
+    ax.set_title("Comparaison masque reel / predit - run 42 (" + run42_example + ")", fontsize=15)
+    ax.set_xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)])
+    ax.set_yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)])
+    ax.tick_params(labelsize=12)
+    ax.set_xlim([cmin2, cmax2 - 1])
+    ax.set_ylim([rmax2, rmin2])
+
+    plt.savefig(save_path + "figure_run42_diff_maskonly.png", bbox_inches="tight", dpi=200)
     plt.show()
 
 
