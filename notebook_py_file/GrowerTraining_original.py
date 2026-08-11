@@ -69,7 +69,7 @@ if plot:
     plt.show()
 
 # options
-seed = 43
+seed = 41
 val_fraction = 0.2
 val_count = int(np.ceil(len(file_names) * val_fraction))
 val_count = max(1, min(val_count, max(1, len(file_names) - 1)))

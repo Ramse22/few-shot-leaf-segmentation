@@ -1,0 +1,2 @@
+ORIGINAL,2026-08-08T04:43:26.447007,4091.8137,epochs=1,batch_size=512,workers=16,window_size=128,device=cuda:0
+ORIGINAL_INFERENCE,2026-08-10T15:44:04.593516,54.7003,n_locs=10000,batch_size=2048,window_size=128,device=cuda:0

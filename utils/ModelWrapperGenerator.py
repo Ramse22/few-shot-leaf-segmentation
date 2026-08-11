@@ -140,8 +140,10 @@ class ModelWrapper():
 
         # initialize log file
         if self.log_name is not None:
-            with open(self.log_name, 'w') as f:
-                f.writelines('Epoch,Train Loss,Val Loss\n')
+
+            with open(self.log_name, 'a' if initial_epoch > 0 else 'w') as f:
+                if initial_epoch == 0:
+                    f.writelines('Epoch,Train Loss,Val Loss\n')
         
         # loop over epochs
         for epoch in range(initial_epoch, initial_epoch + epochs):
@@ -417,6 +419,7 @@ class ModelWrapper():
                     
             # log progress
             if self.log_name is not None:
+
                 with open(self.log_name, 'a') as f:
                     f.writelines('{0},{1},{2}\n'.format(
                         epoch+1, 

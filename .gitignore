@@ -3,4 +3,5 @@ data/labkey
 data/temp
 data/meta
 *.ipynb_checkpoints*
-*__pycache__*
+*__pycache__*data/vein_fl_preds_*/
+data/vein_fl_probs_*/
