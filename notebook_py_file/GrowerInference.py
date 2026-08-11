@@ -22,8 +22,9 @@ if 'device' not in locals():
 # %%
 # options
 window_size = 128
+seed = 42
 loss = 'fl' # 'fl' 'bce'
-weights_path = f'../weights/vein_grower_{loss}_{window_size}_best_val_model.save'
+weights_path = f'../weights_marion/vein_grower_{seed}_best_val_model.save'
 layers = layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
@@ -55,9 +56,9 @@ grower = VeinGrower.VeinGrower(
 # %%
 # options
 image_path = '../data/images/'
-roi_path = '../data_marion/leaf_preds/'
-pred_path = f'../data_marion/vein_{loss}_preds/'
-prob_path = f'../data_marion/vein_{loss}_probs/'
+roi_path = '../data/leaf_preds/'
+pred_path = f'../data/vein_fl_preds_42/'
+prob_path = f'../data/vein_fl_probs_42/'
 image_extension = 'jpeg'
 roi_extension = 'png'
 pred_extension = 'png'
@@ -66,14 +67,15 @@ n_locs = 10000 # number of seed pixels
 batch_size = 2048
 threshold = None
 post_process = True
-max_number = 10 # number of images to segment, set to None for all images
+max_number = None # number of images to segment, set to None for all images
 verbose = True
 save = True
-show = True
+show = False
 fig_size = 15
 
 # get image paths
-image_names = [os.path.basename(f) for f in glob.glob(image_path+'*'+image_extension) if '_bot' in f]
+with open('../bot_images.txt') as f:
+    image_names = [line.strip().replace('.png', '.jpeg') for line in f.readlines()]
 image_names.sort()
 
 # loop over all leaf images
