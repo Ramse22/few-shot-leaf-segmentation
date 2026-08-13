@@ -23,7 +23,7 @@ if 'device' not in locals():
 # options
 window_size = 128
 loss = 'fl' # 'fl' 'bce'
-weights_path = '../weights_marion/vein_grower_42_best_val_model.save'
+weights_path = '../weights_marion/vein_grower_45_best_val_model.save'
 layers = layers = [3, 32, 32, 32, 32, 64, 128]
 output_shape = [2, 3, 3]
 output_activation = torch.nn.Softmax2d()
@@ -56,8 +56,8 @@ grower = VeinGrower.VeinGrower(
 # options
 image_path = '../data/images/'
 roi_path = '../data/leaf_preds/'
-pred_path = '../data/vein_fl_preds_42/'
-prob_path = '../data/vein_fl_probs_42/'
+pred_path = '../data/vein_fl_preds_45/'
+prob_path = '../data/vein_fl_probs_45/'
 image_extension = 'jpeg'
 roi_extension = 'png'
 pred_extension = 'png'
