@@ -1,0 +1,25 @@
+data:
+  image_path: "../data/images/"
+  roi_path: "../data/leaf_preds/"
+  weights_path: "../../few-shot-leaf-segmentation/weights_marion/vein_grower_43_best_val_model.save"
+  pred_path: "../results/"
+  prob_path: "../results/"
+  roi_extension: "png"
+  pred_extension: "png"
+  prob_extension: "png"
+  window_size: 128
+model:
+  loss: "fl"
+  layers: [3, 32, 32, 32, 32, 64, 128]
+  output_shape: [2, 3, 3]
+  output_activation: "Softmax2d"
+inference:
+  n_locs: 10000
+  batch_size: 2048
+  threshold: 0.5
+  post_process: True
+  max_number: 1
+  verbose: True
+  save: False
+  show: False
+  fig_size: 15

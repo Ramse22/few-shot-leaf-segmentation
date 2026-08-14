@@ -1,7 +1,7 @@
 import os, glob
-import yaml
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from PIL import Image
 from skimage import measure
 
@@ -14,26 +14,22 @@ image_path   = "../data/images/"
 save_path    = "../figures_marion/"
 os.makedirs(save_path, exist_ok=True)
 
-# config filename: display label for each approach
+AUTH_PRED_DIRS = {
+    42: "../data_marion/vein_fl_preds_42/",
+    43: "../data_marion/vein_fl_preds_43/",
+    44: "../data_marion/vein_fl_preds_44/",
+    45: "../data_marion/vein_fl_preds_45/",
+    46: "../data_marion/vein_fl_preds_46/",
+    47: "../data_marion/vein_fl_preds_47/",
+}
+
 APPROACHES = {
     "config.yaml":          "Our approach",
-    "config_jlag.yaml":     "JLAG",
     "config_original.yaml": "Original",
 }
 
-### some functions ###
-
-# intersection over union
-def iou(a, b):
-    i = (a.astype(bool) * b.astype(bool)).sum()
-    u = (a.astype(bool) + b.astype(bool)).clip(0, 1).sum()
-    return i / u
-
 def reduce_dim(mask):
     return mask[:, :, 0] if len(mask.shape) == 3 else mask
-
-
-# Figure 1 - Example vein prediction for each config/approach
 
 example_name   = "C_1_1_2_bot"
 leaf_pred_path = "../data_marion/leaf_preds_jlag_sam3/"
@@ -44,7 +40,6 @@ n_tick      = 400
 plot_width  = figsize
 plot_height = (rmax - rmin) / (cmax - cmin) * figsize
 
-# find the first run directory for each approach that has predictions
 approach_runs = {label: [] for label in APPROACHES.values()}
 for run_dir in sorted(glob.glob(results_path + "*/")):
     for config_name, label in APPROACHES.items():
@@ -91,9 +86,6 @@ if fig_runs:
     plt.show()
 
 
-# Figure - image seule / + masque reel / + masque predit + contour (run 42, "our approach")
-# Uses C_1_11_1_bot since it already has a prediction in this run's vein_fl_preds/
-
 run42_normal_dir  = results_path + "20260601-112025-063664/"
 run42_example     = "C_1_14_18_bot"
 run42_pred_file   = run42_normal_dir + "vein_fl_preds/" + run42_example + ".png"
@@ -119,7 +111,6 @@ if os.path.exists(run42_pred_file):
     vein_crop2 = (vein_arr2[:, :, 0] if vein_arr2.ndim == 3 else vein_arr2) > 128
     vein_crop2 = vein_crop2[rmin2:rmax2, cmin2:cmax2]
 
-    # masque reel, meme convention de binarisation que pour le calcul d'IoU plus bas
     real_crop2 = None
     if os.path.exists(run42_real_file):
         real_arr2  = np.array(Image.open(run42_real_file), dtype=float)
@@ -130,23 +121,19 @@ if os.path.exists(run42_pred_file):
     fig, axes = plt.subplots(1, n_panels, figsize=[n_panels * plot_width, plot_height2], constrained_layout=True)
 
     panel_idx = 0
-
-    # Panneau : image seule
     plt.sca(axes[panel_idx])
     plt.imshow(image_crop2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
-    axes[panel_idx].set_title("Image de base", fontsize=15)
+    axes[panel_idx].set_title("Base image", fontsize=15)
     panel_idx += 1
 
-    # Panneau : image + masque reel (si dispo)
     if real_crop2 is not None:
         plot_real2 = image_crop2.copy()
         plot_real2[real_crop2] = [1, 0, 0]
         plt.sca(axes[panel_idx])
         plt.imshow(plot_real2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
-        axes[panel_idx].set_title("+ masque reel (veines)", fontsize=15)
+        axes[panel_idx].set_title("+ ground truth mask (veins)", fontsize=15)
         panel_idx += 1
 
-    # Panneau : image + masque predit + contour feuille
     plot_image2 = image_crop2.copy()
     plot_image2[vein_crop2] = [1, 0, 0]
     plt.sca(axes[panel_idx])
@@ -166,93 +153,123 @@ if os.path.exists(run42_pred_file):
     plt.show()
 
 
-# Figure - masque de comparaison (reel vs predit) pour run 42
-# rouge = en commun (TP), bleu = uniquement dans le masque reel (FN), vert = uniquement dans la prediction (FP)
+    def plot_mask_on_leaf(base_image, masks_colors, contour, title):
+        plot_img = base_image.copy()
+        for mask, color in masks_colors:
+            plot_img[mask] = color
+        fig, ax = plt.subplots(figsize=[plot_width, plot_height2], constrained_layout=True)
+        plt.imshow(plot_img, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
+        if contour is not None:
+            plt.plot(contour[:, 1] + cmin2, contour[:, 0] + rmin2, "k-", linewidth=2)
+        ax.set_title(title, fontsize=15)
+        ax.set_xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)])
+        ax.set_yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)])
+        ax.tick_params(labelsize=12)
+        ax.set_xlim([cmin2, cmax2 - 1])
+        ax.set_ylim([rmax2, rmin2])
+        return fig, ax
 
-if os.path.exists(run42_pred_file) and real_crop2 is not None:
-    tp = real_crop2 & vein_crop2
-    fn = real_crop2 & ~vein_crop2
-    fp = ~real_crop2 & vein_crop2
+    rmin3, rmax3 = 1700, 2500
+    cmin3, cmax3 = 1100, 1500
 
-    plot_diff2 = image_crop2.copy()
-    plot_diff2[fn] = [0, 0, 1]
-    plot_diff2[fp] = [0, 1, 0]
-    plot_diff2[tp] = [1, 0, 0]
+    if real_crop2 is not None:
+        both      = real_crop2 & vein_crop2
+        mask_only = real_crop2 & ~vein_crop2
+        pred_only = ~real_crop2 & vein_crop2
 
-    fig, ax = plt.subplots(figsize=[plot_width, plot_height2], constrained_layout=True)
-    plt.imshow(plot_diff2, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
-    if contour2 is not None:
-        plt.plot(contour2[:, 1] + cmin2, contour2[:, 0] + rmin2, "k-", linewidth=2)
-    ax.set_title("Comparaison masque reel / predit - run 42 (" + run42_example + ")", fontsize=15)
-    ax.set_xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)])
-    ax.set_yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)])
-    ax.tick_params(labelsize=12)
-    ax.set_xlim([cmin2, cmax2 - 1])
-    ax.set_ylim([rmax2, rmin2])
+        fig, ax = plot_mask_on_leaf(
+            image_crop2,
+            [(mask_only, [0, 1, 0]), (pred_only, [1, 0, 0]), (both, [0, 0, 1])],
+            contour2,
+            "Ground truth vs. prediction comparison - run 42 (" + run42_example + ")",
+        )
+        legend_handles = [
+            mpatches.Patch(color=[0, 0, 1], label="Les deux"),
+            mpatches.Patch(color=[0, 1, 0], label="Masque seul"),
+            mpatches.Patch(color=[1, 0, 0], label="Prediction seule"),
+        ]
+        ax.legend(handles=legend_handles, loc="upper right", fontsize=11, framealpha=0.9)
+        rect = plt.Rectangle((cmin3, rmin3), cmax3 - cmin3, rmax3 - rmin3,
+                              linewidth=2, edgecolor="black", facecolor="none", linestyle="-")
+        ax.add_patch(rect)
+        plt.savefig(save_path + "figure_run42_diff.png", bbox_inches="tight", dpi=200)
+        plt.show()
 
-    plt.savefig(save_path + "figure_run42_diff.png", bbox_inches="tight", dpi=200)
-    plt.show()
+        plot_mask_on_leaf(np.ones_like(image_crop2), [(both, [0, 0, 1])], contour2,
+                          "Both (ground truth & prediction) - run 42 (" + run42_example + ")")
+        plt.savefig(save_path + "figure_run42_both.png", bbox_inches="tight", dpi=200)
+        plt.show()
 
-    # meme figure, sans l'image de la feuille en fond (fond blanc, que les masques)
-    plot_diff2_maskonly = np.ones_like(image_crop2)
-    plot_diff2_maskonly[fn] = [0, 0, 1]
-    plot_diff2_maskonly[fp] = [0, 1, 0]
-    plot_diff2_maskonly[tp] = [1, 0, 0]
+        plot_mask_on_leaf(np.ones_like(image_crop2), [(mask_only, [0, 1, 0])], contour2,
+                          "Mask only - run 42 (" + run42_example + ")")
+        plt.savefig(save_path + "figure_run42_mask_only.png", bbox_inches="tight", dpi=200)
+        plt.show()
 
-    fig, ax = plt.subplots(figsize=[plot_width, plot_height2], constrained_layout=True)
-    plt.imshow(plot_diff2_maskonly, vmin=0, vmax=1, extent=[cmin2, cmax2, rmax2, rmin2])
-    if contour2 is not None:
-        plt.plot(contour2[:, 1] + cmin2, contour2[:, 0] + rmin2, "k-", linewidth=2)
-    ax.set_title("Comparaison masque reel / predit - run 42 (" + run42_example + ")", fontsize=15)
-    ax.set_xticks([cmin2 + i * n_tick for i in range(int((cmax2 - cmin2) / n_tick) + 1)])
-    ax.set_yticks([rmin2 + i * n_tick for i in range(int((rmax2 - rmin2) / n_tick) + 1)])
-    ax.tick_params(labelsize=12)
-    ax.set_xlim([cmin2, cmax2 - 1])
-    ax.set_ylim([rmax2, rmin2])
+        plot_mask_on_leaf(np.ones_like(image_crop2), [(pred_only, [1, 0, 0])], contour2,
+                          "Prediction only - run 42 (" + run42_example + ")")
+        plt.savefig(save_path + "figure_run42_pred_only.png", bbox_inches="tight", dpi=200)
+        plt.show()
 
-    plt.savefig(save_path + "figure_run42_diff_maskonly.png", bbox_inches="tight", dpi=200)
-    plt.show()
+        both3      = both[rmin3 - rmin2:rmax3 - rmin2, cmin3 - cmin2:cmax3 - cmin2]
+        mask_only3 = mask_only[rmin3 - rmin2:rmax3 - rmin2, cmin3 - cmin2:cmax3 - cmin2]
+        pred_only3 = pred_only[rmin3 - rmin2:rmax3 - rmin2, cmin3 - cmin2:cmax3 - cmin2]
+        image_crop3 = image_crop2[rmin3 - rmin2:rmax3 - rmin2, cmin3 - cmin2:cmax3 - cmin2]
 
+        plot_width3  = 6
+        plot_height3 = (rmax3 - rmin3) / (cmax3 - cmin3) * plot_width3
 
-# IoU per run (between vein_mask and vein_pred for each run/approach/seed)
+        plot_img3 = image_crop3.copy()
+        plot_img3[mask_only3] = [0, 1, 0]
+        plot_img3[pred_only3] = [1, 0, 0]
+        plot_img3[both3]      = [0, 0, 1]
 
-iou_by_approach = {label: [] for label in APPROACHES.values()}
+        fig, ax = plt.subplots(figsize=[plot_width3, plot_height3], constrained_layout=True)
+        plt.imshow(plot_img3, vmin=0, vmax=1, extent=[cmin3, cmax3, rmax3, rmin3])
+        ax.set_xticks([]); ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_edgecolor("black"); spine.set_linewidth(2)
+        plt.savefig(save_path + "figure_run42_diff_zoom.png", bbox_inches="tight", dpi=300)
+        plt.show()
 
-for run_dir in sorted(glob.glob(results_path + "*/")):
-    # identify approach from config yaml present in this run
-    label = None
-    for config_name, approach_label in APPROACHES.items():
-        if os.path.exists(run_dir + config_name):
-            label = approach_label
-            break
-    if label is None:
-        continue
+        fig, ax = plt.subplots(figsize=[plot_width3, plot_height3], constrained_layout=True)
+        plt.imshow(image_crop3, vmin=0, vmax=1, extent=[cmin3, cmax3, rmax3, rmin3])
+        ax.set_xticks([]); ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_edgecolor("black"); spine.set_linewidth(2)
+        plt.savefig(save_path + "figure_run42_diff_zoom_leaf.png", bbox_inches="tight", dpi=300)
+        plt.show()
 
-    pred_dir = run_dir + "vein_fl_preds/"
-    if not os.path.exists(pred_dir):
-        continue
+        vein_crop3 = vein_crop2[rmin3 - rmin2:rmax3 - rmin2, cmin3 - cmin2:cmax3 - cmin2]
+        fig, ax = plt.subplots(figsize=[plot_width3, plot_height3], constrained_layout=True)
+        plt.imshow(image_crop3, vmin=0, vmax=1, extent=[cmin3, cmax3, rmax3, rmin3])
+        plt.imshow(vein_crop3, cmap="Reds", alpha=0.2, extent=[cmin3, cmax3, rmax3, rmin3])
+        ax.set_xticks([]); ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_edgecolor("black"); spine.set_linewidth(2)
+        plt.savefig(save_path + "figure_run42_zoom_pred_transparent_ours.png", bbox_inches="tight", dpi=300)
+        plt.show()
 
-    for mask_file in sorted(glob.glob(mask_path + "*.png")):
-        pred_file = pred_dir + os.path.basename(mask_file)
-        if not os.path.exists(pred_file):
-            continue
-        gt   = reduce_dim((np.array(Image.open(mask_file)) / 255) > 0.5)
-        pred = reduce_dim((np.array(Image.open(pred_file)) / 255) > 0.5)
-        iou_by_approach[label].append(iou(gt, pred))
+        auth_pred_file = AUTH_PRED_DIRS[42] + run42_example + ".png"
+        if os.path.exists(auth_pred_file):
+            auth_arr2   = np.array(Image.open(auth_pred_file), dtype=float)
+            auth_crop2  = (auth_arr2[:, :, 0] if auth_arr2.ndim == 3 else auth_arr2) > 128
+            auth_crop2  = auth_crop2[rmin2:rmax2, cmin2:cmax2]
 
+            auth_both      = real_crop2 & auth_crop2
+            auth_mask_only = real_crop2 & ~auth_crop2
+            auth_pred_only = ~real_crop2 & auth_crop2
 
-# Boxplot of IoU for each approach (across seeds)
+            plot_mask_on_leaf(np.ones_like(image_crop2), [(auth_both, [0, 0, 1])], contour2,
+                              "Both (ground truth & prediction) - Authors' method (" + run42_example + ")")
+            plt.savefig(save_path + "figure_run42_both_authors.png", bbox_inches="tight", dpi=200)
+            plt.show()
 
-approach_labels = [label for label in APPROACHES.values() if iou_by_approach[label]]
-approach_data   = [iou_by_approach[label] for label in approach_labels]
+            plot_mask_on_leaf(np.ones_like(image_crop2), [(auth_mask_only, [0, 1, 0])], contour2,
+                              "Mask only - Authors' method (" + run42_example + ")")
+            plt.savefig(save_path + "figure_run42_mask_only_authors.png", bbox_inches="tight", dpi=200)
+            plt.show()
 
-if approach_data:
-    fig, ax = plt.subplots(figsize=[max(5, 3 * len(approach_labels)), 5])
-    ax.boxplot(approach_data, tick_labels=approach_labels)
-    plt.ylabel("IoU (vein mask vs. prediction)", fontsize=14)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
-    plt.ylim([0, 1])
-    plt.grid(axis="y")
-    plt.savefig(save_path + "figure_boxplot_iou.png", bbox_inches="tight", dpi=200)
-    plt.show()
+            plot_mask_on_leaf(np.ones_like(image_crop2), [(auth_pred_only, [1, 0, 0])], contour2,
+                              "Prediction only - Authors' method (" + run42_example + ")")
+            plt.savefig(save_path + "figure_run42_pred_only_authors.png", bbox_inches="tight", dpi=200)
+            plt.show()

@@ -7,7 +7,7 @@ from skimage import measure
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # Load saved masks
-pred_path = "../data_marion/leaf_preds_sam3/"
+pred_path = "../data_marion/leaf_preds_new_sam3/"
 image_path = "../data_marion/images/"
 
 # Convert TIFF images to JPEG
@@ -18,7 +18,8 @@ for tiff_file in glob.glob(image_path + "*.tiff"):
     print(f"Converted {os.path.basename(tiff_file)}")
 
 # Get list of saved predictions
-pred_files = sorted(glob.glob(pred_path + "*.png"))
+#pred_files = sorted(glob.glob(pred_path + "*.png"))
+pred_files = sorted(glob.glob(pred_path + "Agatea_longipedicellata_Blanchon_738_cropped.png"))
 
 print(f"\nFound {len(pred_files)} saved predictions\n")
 
@@ -26,7 +27,8 @@ print(f"\nFound {len(pred_files)} saved predictions\n")
 num_examples = 3
 fig_size = 12
 
-for pred_idx, pred_file in enumerate(pred_files[:num_examples]):
+#for pred_idx, pred_file in enumerate(pred_files[:num_examples]):
+for pred_idx, pred_file in enumerate(pred_files):
     base_name = os.path.splitext(os.path.basename(pred_file))[0]
 
     # Try different image extensions
@@ -56,11 +58,12 @@ for pred_idx, pred_file in enumerate(pred_files[:num_examples]):
         contour = measure.find_contours(mask, 0.5)
         if contour:
             for cont in contour:
-                plt.plot(cont[:, 1], cont[:, 0], "r-", linewidth=2)
+                plt.plot(cont[:, 1], cont[:, 0], "r-", linewidth=3)
 
         plt.title(f"Example {pred_idx + 1}: {base_name}")
         plt.axis("off")
         plt.tight_layout()
+        plt.savefig(f"../figures_marion/{base_name}_leaf_overlay.png", dpi=200, bbox_inches="tight")
         plt.show()
     else:
         print(f"Image file not found for: {base_name}")
