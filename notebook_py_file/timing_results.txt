@@ -1,0 +1,1 @@
+NEW,2026-08-14T18:15:21.672480,1955.6298,epochs=1,batch_size=1024,workers=8,window_size=64,device=cuda:0

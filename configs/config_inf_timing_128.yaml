@@ -1,13 +1,13 @@
 data:
   image_path: "../data/images/"
   roi_path: "../data/leaf_preds/"
-  weights_path: "../results/20260701-191150-693819/vein_grower_best_val_model.save"
+  weights_path: "../../few-shot-leaf-segmentation/weights_marion/vein_grower_43_best_val_model.save"
   pred_path: "../results/"
   prob_path: "../results/"
   roi_extension: "png"
   pred_extension: "png"
   prob_extension: "png"
-  window_size: 64
+  window_size: 128
 model:
   loss: "fl"
   layers: [3, 32, 32, 32, 32, 64, 128]
